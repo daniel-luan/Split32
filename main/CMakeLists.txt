@@ -1,2 +1,2 @@
-idf_component_register(SRCS "Split32.c"
+idf_component_register(SRCS "main.cpp"
                     INCLUDE_DIRS ".")
