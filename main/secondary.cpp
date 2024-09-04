@@ -7,7 +7,7 @@ const char *Secondary::tag = "SecondaryTransport";
 
 Secondary::Secondary()
 {
-    recv_queue = xQueueCreate(10, sizeof(QueueItem));
+    recv_queue = xQueueCreate(32, sizeof(QueueItem));
     state = INIT;
     ESP_LOGI(tag, "State: INIT");
 }
@@ -33,11 +33,11 @@ void Secondary::sendCallback(const uint8_t *mac_addr, esp_now_send_status_t stat
 
     if (status == ESP_NOW_SEND_SUCCESS)
     {
-        // std::cout << "Message sent successfully\n";
+        ESP_LOGI(tag, "Message sent successfully");
     }
     else
     {
-        // std::cout << "Failed to send message\n";
+        ESP_LOGI(tag, "Failed to send message");
     }
 }
 
@@ -52,7 +52,7 @@ void Secondary::recvCallback(const esp_now_recv_info_t *esp_now_info, const uint
     xQueueSend(get().recv_queue, &item, portMAX_DELAY);
 }
 
-void Secondary::queue_process_task(void *p)
+void Secondary::process_recv_task(void *p)
 {
 
     QueueItem item;
@@ -63,9 +63,9 @@ void Secondary::queue_process_task(void *p)
             continue;
         }
 
-        ESP_LOGI(tag, "Got item %d from " MACSTR, item.message.packetType, MAC2STR(item.mac_addr));
+        ESP_LOGI(tag, "Got item %d from " MACSTR, item.message.header.packetType, MAC2STR(item.mac_addr));
 
-        if (item.message.packetType == PacketType::MSG_TYPE_ACK)
+        if (item.message.header.packetType == PacketType::PACKET_TYPE_ACK)
         {
 
             memcpy(get().primary_address, item.mac_addr, 6);
@@ -91,18 +91,21 @@ void Secondary::registerWithPrimary()
     while (state == Secondary::State::REGISTERING)
     {
         const uint8_t destination_mac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-        ESP_LOGI(tag, "Sending MSG_TYPE_REGISTRATION");
-        Packet message = {MSG_TYPE_REGISTRATION};
+        ESP_LOGI(tag, "Sending PACKET_TYPE_REGISTRATION");
+        Packet message = {PACKET_TYPE_REGISTRATION, DEVICE_ROLE};
         ESP_ERROR_CHECK(esp_now_send(destination_mac, (uint8_t *)&message, sizeof(message))); // NULL for broadcast
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
 
-void Secondary::sendDataToPrimary()
+void Secondary::sendMatrixToPrimary(uint8_t matrix[MATRIX_ROWS][MATRIX_COLS])
 {
     assert(state == RUNNING);
 
-    ESP_LOGI(tag, "Sending MSG_TYPE_MATRIX");
-    Packet message = {MSG_TYPE_MATRIX};
-    ESP_ERROR_CHECK(esp_now_send(primary_address, (uint8_t *)&message, sizeof(message))); // NULL for broadcast
+    ESP_LOGI(tag, "Sending PACKET_TYPE_MATRIX");
+    MatrixPacket matrixPacket;
+
+    memcpy(matrixPacket.MATRIX_STATE, matrix, sizeof(matrixPacket.MATRIX_STATE));
+    Packet message = {PACKET_TYPE_MATRIX, DEVICE_ROLE, matrixPacket};
+    ESP_ERROR_CHECK(esp_now_send(primary_address, (uint8_t *)&message, sizeof(message)));
 }

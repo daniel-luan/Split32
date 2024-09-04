@@ -4,28 +4,45 @@
 #define ESPNOW_TRANSPORT_H
 
 #include <cstdint>
+#include <variant>
+
+#include "config.h"
 
 enum PacketType
 {
-    MSG_TYPE_REGISTRATION = 0,
-    MSG_TYPE_ACK,
-    MSG_TYPE_MATRIX,
+    PACKET_TYPE_REGISTRATION = 0,
+    PACKET_TYPE_ACK,
+    PACKET_TYPE_MATRIX,
+    PACKET_TYPE_INFO,
+};
+
+enum DeviceRole
+{
+    ROLE_PRIMARY = 0,
+    ROLE_LEFT,
+    ROLE_RIGHT,
 };
 
 typedef struct __attribute__((packed))
 {
-        
-} MatrixPacket;
-
-typedef union
-{
-    MatrixPacket another;
-} PayloadUnion;
+    PacketType packetType;
+    DeviceRole splitSide;
+} Header;
 
 typedef struct __attribute__((packed))
 {
-    PacketType packetType;
-    PayloadUnion payload;
+    uint8_t MATRIX_STATE[MATRIX_ROWS][MATRIX_COLS] = {0};
+} MatrixPacket;
+
+typedef struct __attribute__((packed))
+{
+    float battery;
+} InfoPacket;
+
+typedef struct
+{
+    Header header;
+    std::variant<MatrixPacket, InfoPacket> payload = {};
 } Packet;
 
 #endif

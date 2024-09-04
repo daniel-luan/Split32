@@ -5,6 +5,7 @@
 #include "esp_log.h"
 #include "esp_wifi.h"
 
+#include "config.h"
 #include "status_led.h"
 #include "primary.h"
 #include "secondary.h"
@@ -51,25 +52,41 @@ extern "C" void app_main(void)
 
     ESP_LOGI(TAG, "Starting app_main");
 
-    Primary &primary = Primary::get();
-    primary.init();
-    BaseType_t err = xTaskCreate(primary.get().queue_process_task, "recv_task", 8192, NULL, 4, NULL);
+    if constexpr (DEVICE_ROLE == ROLE_PRIMARY)
+    {
+        Primary &primary = Primary::get();
+        primary.init();
+        xTaskCreate(primary.get().process_recv_task, "recv_task", 8192, NULL, 4, NULL);
+    }
+    else
+    {
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        Secondary &secondary = Secondary::get();
+        secondary.init();
+        xTaskCreate(secondary.get().process_recv_task, "recv_task", 8192, NULL, 4, NULL);
 
-    // Secondary &secondary = Secondary::get();
-    // secondary.init();
-    // BaseType_t err = xTaskCreate(secondary.get().queue_process_task, "recv_task", 8192, NULL, 4, NULL);
+        STATUS_LED::get().set(StatusColor::Green);
 
-    // STATUS_LED::get().set(StatusColor::Green);
+        secondary.registerWithPrimary();
 
-    // secondary.registerWithPrimary();
+        STATUS_LED::get().set(StatusColor::Magenta);
 
-    // STATUS_LED::get().set(StatusColor::Magenta);
+        uint8_t matrix[MATRIX_ROWS][MATRIX_COLS] = {0};
 
-    // while (1)
-    // {
-    //     secondary.sendDataToPrimary();
-    //     vTaskDelay(1000 / portTICK_PERIOD_MS);
-    // }
+        for (int i = 0; i < MATRIX_ROWS; i++)
+        {
+            for (int j = 0; j < MATRIX_COLS; j++)
+            {
+                matrix[i][j] = i + j;
+            }
+        }
+
+        while (1)
+        {
+            secondary.sendMatrixToPrimary(matrix);
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+        }
+    }
 
     while (1)
     {

@@ -26,13 +26,14 @@ void Primary::init()
 
 void Primary::sendCallback(const uint8_t *mac_addr, esp_now_send_status_t status)
 {
+
     if (status == ESP_NOW_SEND_SUCCESS)
     {
-        // std::cout << "Message sent successfully\n";
+        ESP_LOGI(tag, "Message sent successfully");
     }
     else
     {
-        // std::cout << "Failed to send message\n";
+        ESP_LOGI(tag, "Failed to send message");
     }
 }
 
@@ -45,19 +46,9 @@ void Primary::recvCallback(const esp_now_recv_info_t *esp_now_info, const uint8_
     memcpy(item.mac_addr, esp_now_info->src_addr, 6);
     memcpy(&item.message, data, data_len);
     xQueueSend(get().recv_queue, &item, portMAX_DELAY);
-    // if (msg.type == MSG_TYPE_ACK)
-    // {
-    //     std::cout << "Received ACK from Master: " << msg.payload << std::endl;
-
-    //     // Store the master's MAC address and set registration flag
-    //     ESPNowSlave *self = static_cast<ESPNowSlave *>(esp_now_get_user_data());
-    //     std::memcpy(self->master_mac_addr, mac_addr, 6);
-    //     self->master_registered = true;
-    // }
-    // Handle other message types from the master
 }
 
-void Primary::queue_process_task(void *p)
+void Primary::process_recv_task(void *p)
 {
     get().state = RUNNING;
 
@@ -71,15 +62,25 @@ void Primary::queue_process_task(void *p)
             continue;
         }
 
-        ESP_LOGI(tag, "Got item %d from " MACSTR, item.message.packetType, MAC2STR(item.mac_addr));
+        ESP_LOGI(tag, "Got item %d from " MACSTR, item.message.header.packetType, MAC2STR(item.mac_addr));
 
         get().registerSecondary(item.mac_addr);
 
-        if (item.message.packetType == PacketType::MSG_TYPE_REGISTRATION)
+        if (item.message.header.packetType == PacketType::PACKET_TYPE_REGISTRATION)
         {
-            ESP_LOGI(tag, "Sending MSG_TYPE_ACK to " MACSTR, MAC2STR(item.mac_addr));
-            Packet message = {MSG_TYPE_ACK};
+            ESP_LOGI(tag, "Sending PACKET_TYPE_ACK to " MACSTR, MAC2STR(item.mac_addr));
+            Packet message = {PACKET_TYPE_ACK, ROLE_PRIMARY};
             ESP_ERROR_CHECK(esp_now_send(item.mac_addr, (uint8_t *)&message, sizeof(message))); // NULL for broadcast
+        }
+        else if (item.message.header.packetType == PacketType::PACKET_TYPE_MATRIX)
+        {
+            // for (int i = 0; i < MATRIX_ROWS; i++)
+            // {
+            //     for (int j = 0; j < MATRIX_COLS; j++)
+            //     {
+            //         ESP_LOGI(tag, "%d", std::get<MatrixPacket>(item.message.payload).MATRIX_STATE[i][j]);
+            //     }
+            // }
         }
     }
 }

@@ -55,11 +55,12 @@ public:
 
     void init();
 
-    static void queue_process_task(void *p);
+    static void process_recv_task(void *p);
+    static void process_send_task(void *p);
 
     void registerWithPrimary();
 
-    void sendDataToPrimary();
+    void sendMatrixToPrimary(uint8_t matrix[MATRIX_ROWS][MATRIX_COLS]);
 };
 
 #endif
