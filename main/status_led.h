@@ -5,7 +5,7 @@
 
 #include "led_strip.h"
 
-#define STATUS_LED_GPIO 47
+#define STATUS_LED_GPIO 48
 
 enum class StatusColor
 {
@@ -33,7 +33,7 @@ private:
     STATUS_LED()
     {
         led_strip_config_t strip_config{
-            .strip_gpio_num = STATUS_LED_GPIO,             // The GPIO that connected to the STATUS_LED strip's data line
+            .strip_gpio_num = STATUS_LED_GPIO,        // The GPIO that connected to the STATUS_LED strip's data line
             .max_leds = 1,                            // The number of STATUS_LEDs in the strip,
             .led_pixel_format = LED_PIXEL_FORMAT_GRB, // Pixel format of your STATUS_LED strip
             .led_model = LED_MODEL_WS2812,            // STATUS_LED strip model
