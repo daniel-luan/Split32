@@ -337,25 +337,21 @@ const unsigned char image[4736] = {
 extern "C" void app_main(void)
 {
 
-    // Display d{
-    //     GPIO_NUM_10,
-    //     GPIO_NUM_11,
-    //     GPIO_NUM_12,
-    //     GPIO_NUM_3,
-    //     GPIO_NUM_13,
-    //     GPIO_NUM_9,
-    //     128,
-    //     296};
+    if constexpr (DISPLAY_SUPPORT)
+    {
+        ESP_LOGI(TAG, "Init Display");
+        Display display;
 
-    // d.fill_screen();
-    // d.refresh();
+        // display.fill_screen();
+        // display.refresh();
 
-    // d.power_off();
+        // display.power_off();
 
-    // d.write_display(image, image);
-    // d.refresh();
+        // display.write_display(image, image);
+        // display.refresh();
 
-    // d.power_off();
+        // display.power_off();
+    }
 
     STATUS_LED::get().set(StatusColor::White);
 

@@ -15,7 +15,7 @@ void Display::init_spi()
 
     ret = spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO);
     ESP_ERROR_CHECK(ret);
-    ESP_LOGI(LOG_TAG, "SPI BUS Initizlized!");
+    ESP_LOGI(DISPLAY_TAG, "SPI BUS Initizlized!");
 
     spi_device_interface_config_t devcfg;
     memset(&devcfg, 0, sizeof(spi_device_interface_config_t));
@@ -25,7 +25,7 @@ void Display::init_spi()
     devcfg.queue_size = 7;           // We want to be able to queue 7 transactions at a time
     ret = spi_bus_add_device(SPI2_HOST, &devcfg, &spi);
     ESP_ERROR_CHECK(ret);
-    ESP_LOGI(LOG_TAG, "SPI Device Added!");
+    ESP_LOGI(DISPLAY_TAG, "SPI Device Added!");
 }
 
 void Display::init_gpio()
@@ -52,7 +52,7 @@ void Display::wait_while_busy(const char *name)
 {
 
     vTaskDelay(100 / portTICK_PERIOD_MS);
-    ESP_LOGI(LOG_TAG, "Wait While Busy: %s", name);
+    ESP_LOGI(DISPLAY_TAG, "Wait While Busy: %s", name);
     vTaskDelay(10 / portTICK_PERIOD_MS);
     int count = 0;
     while (1)
@@ -63,16 +63,16 @@ void Display::wait_while_busy(const char *name)
         vTaskDelay(10 / portTICK_PERIOD_MS);
         if (count > 30000)
         {
-            ESP_LOGI(LOG_TAG, "Wait While Busy Timed out");
+            ESP_LOGI(DISPLAY_TAG, "Wait While Busy Timed out");
             break;
         }
     }
-    ESP_LOGI(LOG_TAG, "Wait While Busy Done, took %d ms", count * 10);
+    ESP_LOGI(DISPLAY_TAG, "Wait While Busy Done, took %d ms", count * 10);
 }
 
 void Display::write_command(const uint8_t cmd)
 {
-    ESP_LOGI(LOG_TAG, "Writing CMD: %x", cmd);
+    ESP_LOGI(DISPLAY_TAG, "Writing CMD: %x", cmd);
     esp_err_t ret;
     spi_transaction_t t;
     memset(&t, 0, sizeof(t)); // Zero out the transaction

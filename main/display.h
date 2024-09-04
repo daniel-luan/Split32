@@ -6,15 +6,15 @@
 #include <stdlib.h>
 #include <cstring>
 
-#include "hal/spi_types.h"
-
 #include "esp_log.h"
-#include <driver/spi_master.h>
-#include <driver/gpio.h>
-
+#include "driver/spi_master.h"
+#include "driver/gpio.h"
+#include "hal/spi_types.h"
 #include "freertos/FreeRTOS.h"
 
-static const char *LOG_TAG = "DISPLAY";
+#include "config.h"
+
+static const char *DISPLAY_TAG = "DISPLAY";
 
 class Display
 {
@@ -58,21 +58,21 @@ class Display
 
 public:
     Display(
-        gpio_num_t CS_PIN,
-        gpio_num_t MOSI_PIN,
-        gpio_num_t SCLK_PIN,
-        gpio_num_t BUSY_PIN,
-        gpio_num_t RST_PIN,
-        gpio_num_t DC_PIN,
-        int WIDTH,
-        int HEIGHT) : CS_PIN(CS_PIN),
-                      MOSI_PIN(MOSI_PIN),
-                      SCLK_PIN(SCLK_PIN),
-                      BUSY_PIN(BUSY_PIN),
-                      RST_PIN(RST_PIN),
-                      DC_PIN(DC_PIN),
-                      WIDTH(WIDTH),
-                      HEIGHT(HEIGHT)
+        gpio_num_t CS_PIN = DISPLAY_CS_PIN,
+        gpio_num_t MOSI_PIN = DISPLAY_MOSI_PIN,
+        gpio_num_t SCLK_PIN = DISPLAY_SCLK_PIN,
+        gpio_num_t BUSY_PIN = DISPLAY_BUSY_PIN,
+        gpio_num_t RST_PIN = DISPLAY_RST_PIN,
+        gpio_num_t DC_PIN = DISPLAY_DC_PIN,
+        int WIDTH = DISPLAY_WIDTH,
+        int HEIGHT = DISPLAY_HEIGHT) : CS_PIN(CS_PIN),
+                                       MOSI_PIN(MOSI_PIN),
+                                       SCLK_PIN(SCLK_PIN),
+                                       BUSY_PIN(BUSY_PIN),
+                                       RST_PIN(RST_PIN),
+                                       DC_PIN(DC_PIN),
+                                       WIDTH(WIDTH),
+                                       HEIGHT(HEIGHT)
     {
         init_gpio();
         init_spi();
