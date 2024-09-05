@@ -14,7 +14,6 @@
 
 #include "config.h"
 
-static const char *DISPLAY_TAG = "DISPLAY";
 
 class Display
 {

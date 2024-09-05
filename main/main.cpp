@@ -10,6 +10,7 @@
 #include "primary.h"
 #include "secondary.h"
 #include "display.h"
+#include "matrix.h"
 
 static const char *TAG = "SPLIT32";
 
@@ -334,6 +335,29 @@ const unsigned char image[4736] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
+typedef struct
+{
+    QueueHandle_t key_event_queue;
+    Secondary *secondary;
+} key_event_task_params_t;
+
+void key_event_task(void *pvParameters)
+{
+    key_event_task_params_t *params = (key_event_task_params_t *)pvParameters;
+    key_event_t event;
+
+    while (1)
+    {
+        // Wait for an event from the queue
+        if (xQueueReceive(params->key_event_queue, &event, portMAX_DELAY) == pdPASS)
+        {
+            // Process the key event (e.g., log it or handle the key press)
+            ESP_LOGI(TAG, "Key event - Row: %d, Col: %d, State: %d", event.row, event.col, event.state);
+            params->secondary->sendKeyEventToPrimary(event);
+        }
+    }
+}
+
 extern "C" void app_main(void)
 {
 
@@ -375,7 +399,9 @@ extern "C" void app_main(void)
     }
     else
     {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        Matrix m;
+
+        // vTaskDelay(1000 / portTICK_PERIOD_MS);
         Secondary &secondary = Secondary::get();
         secondary.init();
         xTaskCreate(secondary.get().process_recv_task, "recv_task", 8192, NULL, 4, NULL);
@@ -386,20 +412,16 @@ extern "C" void app_main(void)
 
         STATUS_LED::get().set(StatusColor::Magenta);
 
-        uint8_t matrix[MATRIX_ROWS][MATRIX_COLS] = {0};
+        key_event_task_params_t params = {
+            .key_event_queue = m.key_event_queue,
+            .secondary = &secondary};
 
-        for (int i = 0; i < MATRIX_ROWS; i++)
-        {
-            for (int j = 0; j < MATRIX_COLS; j++)
-            {
-                matrix[i][j] = i + j;
-            }
-        }
+        xTaskCreate(key_event_task, "key_event_task", 8192, (void *)&params, 4, NULL);
 
-        while (1)
+        for (;;)
         {
-            secondary.sendMatrixToPrimary(matrix);
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            m.scan_matrix();
+            vTaskDelay(10 / portTICK_PERIOD_MS);
         }
     }
 

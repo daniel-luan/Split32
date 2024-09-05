@@ -74,13 +74,8 @@ void Primary::process_recv_task(void *p)
         }
         else if (item.message.header.packetType == PacketType::PACKET_TYPE_MATRIX)
         {
-            // for (int i = 0; i < MATRIX_ROWS; i++)
-            // {
-            //     for (int j = 0; j < MATRIX_COLS; j++)
-            //     {
-            //         ESP_LOGI(tag, "%d", std::get<MatrixPacket>(item.message.payload).MATRIX_STATE[i][j]);
-            //     }
-            // }
+            auto event = std::get<MatrixPacket>(item.message.payload);
+            ESP_LOGI(tag, "Key event - Row: %d, Col: %d, State: %d", event.keyEvent.row, event.keyEvent.col, event.keyEvent.state);
         }
     }
 }

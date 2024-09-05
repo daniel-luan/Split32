@@ -7,6 +7,7 @@
 #include <variant>
 
 #include "config.h"
+#include "matrix.h"
 
 enum PacketType
 {
@@ -31,7 +32,7 @@ typedef struct __attribute__((packed))
 
 typedef struct __attribute__((packed))
 {
-    uint8_t MATRIX_STATE[MATRIX_ROWS][MATRIX_COLS] = {0};
+    key_event_t keyEvent;
 } MatrixPacket;
 
 typedef struct __attribute__((packed))

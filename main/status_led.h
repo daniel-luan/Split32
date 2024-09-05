@@ -5,7 +5,7 @@
 
 #include "led_strip.h"
 
-#define STATUS_LED_GPIO 48
+#include "config.h"
 
 enum class StatusColor
 {

@@ -60,7 +60,7 @@ public:
 
     void registerWithPrimary();
 
-    void sendMatrixToPrimary(uint8_t matrix[MATRIX_ROWS][MATRIX_COLS]);
+    void sendKeyEventToPrimary(key_event_t key_event);
 };
 
 #endif

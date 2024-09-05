@@ -98,14 +98,14 @@ void Secondary::registerWithPrimary()
     }
 }
 
-void Secondary::sendMatrixToPrimary(uint8_t matrix[MATRIX_ROWS][MATRIX_COLS])
+void Secondary::sendKeyEventToPrimary(key_event_t key_event)
 {
     assert(state == RUNNING);
 
     ESP_LOGI(tag, "Sending PACKET_TYPE_MATRIX");
     MatrixPacket matrixPacket;
 
-    memcpy(matrixPacket.MATRIX_STATE, matrix, sizeof(matrixPacket.MATRIX_STATE));
+    memcpy(&matrixPacket.keyEvent, &key_event, sizeof(key_event_t));
     Packet message = {PACKET_TYPE_MATRIX, DEVICE_ROLE, matrixPacket};
     ESP_ERROR_CHECK(esp_now_send(primary_address, (uint8_t *)&message, sizeof(message)));
 }

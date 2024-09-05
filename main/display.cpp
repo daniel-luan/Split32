@@ -1,6 +1,8 @@
 
 #include "display.h"
 
+static const char *DISPLAY_TAG = "DISPLAY";
+
 void Display::init_spi()
 {
     esp_err_t ret;
