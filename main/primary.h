@@ -64,6 +64,7 @@ public:
 
     enum State
     {
+        UNKNOWN = -1,
         INIT = 0,
         INITIALIZED,
         RUNNING,
@@ -73,9 +74,11 @@ public:
 
     void init();
 
-    static void process_recv_task(void *p);
+    static void espnow_process_recv_task(void *p);
 
     void registerSecondary(uint8_t mac_addr[6]);
+
+    void run();
 };
 
 #endif

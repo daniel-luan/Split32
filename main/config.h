@@ -39,6 +39,7 @@ const gpio_num_t MATRIX_COL_PINS[] = {
 #define DISPLAY_HEIGHT 296
 
 #define STATUS_LED_GPIO 48
+// #define STATUS_LED_GPIO 47
 // #define STATUS_LED_GPIO 8
 
 #endif

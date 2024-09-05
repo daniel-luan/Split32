@@ -9,7 +9,6 @@ Primary::Primary()
 {
     recv_queue = xQueueCreate(10, sizeof(QueueItem));
     state = INIT;
-    ESP_LOGI(tag, "State: INIT");
 }
 
 void Primary::init()
@@ -21,7 +20,6 @@ void Primary::init()
     ESP_ERROR_CHECK(esp_now_register_recv_cb(get().recvCallback));
 
     state = INITIALIZED;
-    ESP_LOGI(tag, "State: INITIALIZED");
 }
 
 void Primary::sendCallback(const uint8_t *mac_addr, esp_now_send_status_t status)
@@ -48,12 +46,8 @@ void Primary::recvCallback(const esp_now_recv_info_t *esp_now_info, const uint8_
     xQueueSend(get().recv_queue, &item, portMAX_DELAY);
 }
 
-void Primary::process_recv_task(void *p)
+void Primary::espnow_process_recv_task(void *p)
 {
-    get().state = RUNNING;
-
-    ESP_LOGI(tag, "State: RUNNING");
-
     QueueItem item;
     for (;;)
     {
@@ -96,5 +90,48 @@ void Primary::registerSecondary(uint8_t mac_addr[6])
         broadcast_peer.ifidx = WIFI_IF_STA;
         broadcast_peer.encrypt = false;
         ESP_ERROR_CHECK(esp_now_add_peer(&broadcast_peer));
+    }
+}
+
+void Primary::run()
+{
+
+    State lastState = UNKNOWN;
+
+    while (true)
+    {
+        State currentState = state;
+        // On state transition
+        if (lastState != currentState)
+        {
+            ESP_LOGI(tag, "Entering State %d", currentState);
+
+            if (state == INIT)
+            {
+                init();
+            }
+            else if (state == INITIALIZED)
+            {
+                state = RUNNING;
+            }
+            else if (state == RUNNING)
+            {
+                xTaskCreate(Primary::espnow_process_recv_task, "recv_task", 8192, NULL, 4, NULL);
+            }
+        }
+
+        lastState = currentState;
+
+        if (state == INIT)
+        {
+        }
+        else if (state == INITIALIZED)
+        {
+        }
+        else if (state == RUNNING)
+        {
+        }
+
+        vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 }

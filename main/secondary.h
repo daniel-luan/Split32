@@ -45,6 +45,7 @@ public:
 
     enum State
     {
+        UNKNOWN = -1,
         INIT = 0,
         INITIALIZED,
         REGISTERING,
@@ -54,9 +55,16 @@ public:
     State state;
 
     void init();
+    void run();
 
-    static void process_recv_task(void *p);
-    static void process_send_task(void *p);
+    static void espnow_process_recv_task(void *p);
+
+    typedef struct
+    {
+        QueueHandle_t key_event_queue;
+        Secondary *secondary;
+    } key_event_task_params_t;
+    static void key_event_task(void *pvParameters);
 
     void registerWithPrimary();
 
