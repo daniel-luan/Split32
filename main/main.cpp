@@ -12,6 +12,8 @@
 #include "display.h"
 #include "matrix.h"
 
+DEFINE_DEVICE_OFFSETS
+
 static const char *TAG = "SPLIT32";
 
 void init_nvs()
@@ -371,7 +373,7 @@ extern "C" void app_main(void)
     if constexpr (DEVICE_ROLE == ROLE_PRIMARY)
     {
         Primary::get().run();
-        }
+    }
     else
     {
         Secondary::get().run();

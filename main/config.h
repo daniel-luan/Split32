@@ -5,18 +5,32 @@
 
 #include "driver/gpio.h"
 
-// Common Shared Config
+#define DEVICE_ROLE ROLE_PRIMARY
+// #define DEVICE_ROLE ROLE_LEFT
+// #define DEVICE_ROLE ROLE_RIGHT
+
+// ========== Common Shared Config ==========
 // #define STATUS_LED_GPIO 48
 #define STATUS_LED_GPIO 47
 // #define STATUS_LED_GPIO 8
 
-// Primary Device Config
-#define DEVICE_ROLE ROLE_PRIMARY
+enum DeviceRole
+{
+    ROLE_UNKNOWN = -1,
+    ROLE_PRIMARY = 0,
+    ROLE_LEFT,
+    ROLE_RIGHT,
+    ROLE_COUNT
+};
+
+// ========== Primary Device Config ==========
 #define PRIMARY_MATRIX_ROWS SECONDARY_MATRIX_ROWS
 #define PRIMARY_MATRIX_COLS SECONDARY_MATRIX_COLS * 2
 #define PING_INTERVAL 3000000
+#define EXPECTED_PEERS 2
 
-// Secondary Device Configs
+// ========== Secondary Device Configs ==========
+
 #define SLEEP_US 1 * 60 * 1000 * 1000
 // #define SLEEP_US 5 * 1000 * 1000
 
@@ -38,15 +52,22 @@ const gpio_num_t MATRIX_COL_PINS[] = {
 #define SECONDARY_MATRIX_ROWS sizeof(MATRIX_ROW_PINS) / sizeof(gpio_num_t)
 #define SECONDARY_MATRIX_COLS sizeof(MATRIX_COL_PINS) / sizeof(gpio_num_t)
 
-// #define DEVICE_ROLE ROLE_LEFT
-#define LEFT_MATRIX_ROW_OFFSET 0
-#define LEFT_MATRIX_COL_OFFSET 0
+typedef struct
+{
+    int rowOffset;
+    int colOffset;
+} DeviceMatrixOffsets;
 
-// #define DEVICE_ROLE ROLE_RIGHT
-#define RIGHT_MATRIX_ROW_OFFSET 0
-#define RIGHT_MATRIX_COL_OFFSET SECONDARY_MATRIX_COLS
+extern const DeviceMatrixOffsets deviceOffsets[];
 
-// Display Config
+#define DEFINE_DEVICE_OFFSETS                               \
+    const DeviceMatrixOffsets deviceOffsets[ROLE_COUNT] = { \
+        [ROLE_PRIMARY] = {0, 0},                            \
+        [ROLE_LEFT] = {0, 0},                               \
+        [ROLE_RIGHT] = {0, SECONDARY_MATRIX_COLS},          \
+    };
+
+// ========== Display Config ==========
 #define DISPLAY_SUPPORT false
 #define DISPLAY_CS_PIN GPIO_NUM_10
 #define DISPLAY_MOSI_PIN GPIO_NUM_11

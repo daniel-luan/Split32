@@ -65,54 +65,54 @@ void Primary::espnowProcessRecvTask(void *p)
     QueueItem item;
     for (;;)
     {
-        if (xQueueReceive(get().recv_queue, &item, portMAX_DELAY) != pdTRUE)
+
+        if (xQueueReceive(get().recv_queue, &item, portMAX_DELAY) == pdPASS)
         {
-            continue;
-        }
 
-        ESP_LOGI(PRIMARY_TAG, "Got item %d from " MACSTR, item.message.header.packetType, MAC2STR(item.mac_addr));
+            ESP_LOGI(PRIMARY_TAG, "Got item %d from " MACSTR, item.message.header.packetType, MAC2STR(item.mac_addr));
 
-        const auto mac_addr = std::to_array(item.mac_addr);
+            const auto mac_addr = std::to_array(item.mac_addr);
 
-        get().updatePeerInfo(mac_addr, item.message.header.splitSide);
-
-        if (item.message.header.packetType == PacketType::PACKET_TYPE_REGISTRATION)
-        {
-            ESP_LOGI(PRIMARY_TAG, "Sending PACKET_TYPE_ACK to " MACSTR, MAC2STR(item.mac_addr));
-            Packet message = {PACKET_TYPE_ACK, ROLE_PRIMARY};
-            ESP_ERROR_CHECK(esp_now_send(item.mac_addr, (uint8_t *)&message, sizeof(message))); // NULL for broadcast
-        }
-        else if (item.message.header.packetType == PacketType::PACKET_TYPE_MATRIX)
-        {
-            auto event = std::get<MatrixPacket>(item.message.payload);
-
-            auto row = event.keyEvent.row;
-            auto col = event.keyEvent.col;
-            if (item.message.header.splitSide == ROLE_LEFT)
+            if (!get().updatePeerInfo(mac_addr, item.message.header.splitSide))
             {
-                row += LEFT_MATRIX_ROW_OFFSET;
-                col += LEFT_MATRIX_COL_OFFSET;
-            }
-            else if (item.message.header.splitSide == ROLE_RIGHT)
-            {
-                row += RIGHT_MATRIX_ROW_OFFSET;
-                col += RIGHT_MATRIX_COL_OFFSET;
+                continue;
             }
 
-            ESP_LOGI(PRIMARY_TAG, "Key event - Row: %d, Col: %d, State: %d", row, col, event.keyEvent.state);
+            if (item.message.header.packetType == PacketType::PACKET_TYPE_REGISTRATION)
+            {
+                ESP_LOGI(PRIMARY_TAG, "Sending PACKET_TYPE_ACK to " MACSTR, MAC2STR(item.mac_addr));
+                Packet message = {PACKET_TYPE_ACK, ROLE_PRIMARY};
+                ESP_ERROR_CHECK(esp_now_send(item.mac_addr, (uint8_t *)&message, sizeof(message))); // NULL for broadcast
+            }
+            else if (item.message.header.packetType == PacketType::PACKET_TYPE_MATRIX)
+            {
+                auto event = std::get<MatrixPacket>(item.message.payload);
 
-            get().MATRIX_STATE[row][col] = event.keyEvent.state;
+                auto row = event.keyEvent.row + deviceOffsets[item.message.header.splitSide].rowOffset;
+                auto col = event.keyEvent.col + deviceOffsets[item.message.header.splitSide].colOffset;
+
+                ESP_LOGI(PRIMARY_TAG, "Key event - Row: %d, Col: %d, State: %d", row, col, event.keyEvent.state);
+
+                get().MATRIX_STATE[row][col] = event.keyEvent.state;
+            }
         }
     }
 }
 
-void Primary::updatePeerInfo(MacAddress addr, DeviceRole role)
+bool Primary::updatePeerInfo(MacAddress addr, DeviceRole role)
 {
-    auto inserted = peerMap.insert({addr, {}});
 
-    if (inserted.second)
+    auto it = peerMap.find(addr);
+
+    if (it == peerMap.end())
     {
-        ESP_LOGI(PRIMARY_TAG, "New Peer Registering " MACSTR "Role: %d", MAC2STR(addr), role);
+        if (peerMap.size() + 1 > EXPECTED_PEERS)
+        {
+            ESP_LOGE(PRIMARY_TAG, "Max expected number of %d peers reached, ignoring message", EXPECTED_PEERS);
+            return false;
+        }
+
+        ESP_LOGI(PRIMARY_TAG, "New Peer Registering " MACSTR " Role: %d", MAC2STR(addr), role);
 
         esp_now_peer_info_t broadcast_peer = {};
         memcpy(broadcast_peer.peer_addr, addr.data(), 6);
@@ -120,15 +120,19 @@ void Primary::updatePeerInfo(MacAddress addr, DeviceRole role)
         broadcast_peer.ifidx = WIFI_IF_STA;
         broadcast_peer.encrypt = false;
         ESP_ERROR_CHECK(esp_now_add_peer(&broadcast_peer));
+
+        peerMap[addr] = {};
     }
 
     if (role != ROLE_UNKNOWN)
     {
-        inserted.first->second.role = role;
+        peerMap[addr].role = role;
     }
 
-    inserted.first->second.lastPacketTime = esp_timer_get_time();
-    inserted.first->second.sendSuccesful = true;
+    peerMap[addr].lastPacketTime = esp_timer_get_time();
+    peerMap[addr].sendSuccesful = true;
+
+    return true;
 }
 
 void Primary::checkPeerAlive()
@@ -209,22 +213,12 @@ void Primary::onPeerDisconnect(DeviceRole role)
     ESP_LOGI(PRIMARY_TAG, "Clearing peer matrix for side %d", role);
 
     // Clear peer matrix on the primary
-    int row_offset = 0;
-    int col_offset = 0;
-    if (role == ROLE_LEFT)
-    {
-        row_offset += LEFT_MATRIX_ROW_OFFSET;
-        col_offset += LEFT_MATRIX_COL_OFFSET;
-    }
-    else if (role == ROLE_RIGHT)
-    {
-        row_offset += RIGHT_MATRIX_ROW_OFFSET;
-        col_offset += RIGHT_MATRIX_COL_OFFSET;
-    }
+    int rowOffset = deviceOffsets[role].rowOffset;
+    int colOffset = deviceOffsets[role].colOffset;
 
-    for (int row = row_offset; row < SECONDARY_MATRIX_ROWS + row_offset; row++)
+    for (int row = rowOffset; row < SECONDARY_MATRIX_ROWS + rowOffset; row++)
     {
-        for (int col = col_offset; col < SECONDARY_MATRIX_COLS + col_offset; col++)
+        for (int col = colOffset; col < SECONDARY_MATRIX_COLS + colOffset; col++)
         {
             MATRIX_STATE[row][col] = 0;
         }

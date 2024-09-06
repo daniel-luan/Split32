@@ -61,26 +61,25 @@ void Secondary::espnowProcessRecvTask(void *p)
     QueueItem item;
     for (;;)
     {
-        if (xQueueReceive(get().recv_queue, &item, portMAX_DELAY) != pdTRUE)
+
+        if (xQueueReceive(get().recv_queue, &item, portMAX_DELAY) == pdPASS)
         {
-            continue;
-        }
+            ESP_LOGI(SECONDARY_TAG, "Got item %d from " MACSTR, item.message.header.packetType, MAC2STR(item.mac_addr));
 
-        ESP_LOGI(SECONDARY_TAG, "Got item %d from " MACSTR, item.message.header.packetType, MAC2STR(item.mac_addr));
+            if (item.message.header.packetType == PacketType::PACKET_TYPE_ACK)
+            {
 
-        if (item.message.header.packetType == PacketType::PACKET_TYPE_ACK)
-        {
+                memcpy(get().primary_address, item.mac_addr, 6);
 
-            memcpy(get().primary_address, item.mac_addr, 6);
+                esp_now_peer_info_t broadcast_peer = {};
+                memcpy(broadcast_peer.peer_addr, item.mac_addr, 6);
+                broadcast_peer.channel = 0;
+                broadcast_peer.ifidx = WIFI_IF_STA;
+                broadcast_peer.encrypt = false;
+                ESP_ERROR_CHECK(esp_now_add_peer(&broadcast_peer));
 
-            esp_now_peer_info_t broadcast_peer = {};
-            memcpy(broadcast_peer.peer_addr, item.mac_addr, 6);
-            broadcast_peer.channel = 0;
-            broadcast_peer.ifidx = WIFI_IF_STA;
-            broadcast_peer.encrypt = false;
-            ESP_ERROR_CHECK(esp_now_add_peer(&broadcast_peer));
-
-            get().state = RUNNING;
+                get().state = RUNNING;
+            }
         }
     }
 }

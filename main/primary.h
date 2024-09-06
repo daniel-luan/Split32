@@ -53,7 +53,7 @@ class Primary
 
     static void espnowProcessRecvTask(void *p);
 
-    void updatePeerInfo(MacAddress addr, DeviceRole role);
+    bool updatePeerInfo(MacAddress addr, DeviceRole role);
 
     void checkPeerAlive();
 

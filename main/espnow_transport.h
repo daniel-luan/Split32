@@ -18,13 +18,6 @@ enum PacketType
     PACKET_TYPE_INFO,
 };
 
-enum DeviceRole
-{
-    ROLE_UNKNOWN = -1,
-    ROLE_PRIMARY = 0,
-    ROLE_LEFT,
-    ROLE_RIGHT,
-};
 
 typedef struct __attribute__((packed))
 {
