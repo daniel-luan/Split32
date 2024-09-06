@@ -22,7 +22,7 @@ void Matrix::gpio_matrix_init()
     // Initializing cols as ouput
     memset(&io_conf, 0, sizeof(gpio_config_t));
     io_conf.mode = GPIO_MODE_OUTPUT;
-    for (uint8_t col = 0; col < MATRIX_COLS; col++)
+    for (uint8_t col = 0; col < SECONDARY_MATRIX_COLS; col++)
     {
         io_conf.pin_bit_mask |= (1ULL << MATRIX_COL_PINS[col]);
     }
@@ -34,7 +34,7 @@ void Matrix::gpio_matrix_init()
     io_conf.pull_down_en = GPIO_PULLDOWN_ENABLE;
     io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
 
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++)
+    for (uint8_t row = 0; row < SECONDARY_MATRIX_ROWS; row++)
     {
         io_conf.pin_bit_mask |= (1ULL << MATRIX_ROW_PINS[row]);
     }
@@ -53,12 +53,12 @@ void Matrix::rtc_pin_deinit(gpio_num_t pin)
 
 void Matrix::rtc_matrix_deinit(void)
 {
-    for (uint8_t col = 0; col < MATRIX_COLS; col++)
+    for (uint8_t col = 0; col < SECONDARY_MATRIX_COLS; col++)
     {
         rtc_pin_deinit(MATRIX_COL_PINS[col]);
     }
 
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++)
+    for (uint8_t row = 0; row < SECONDARY_MATRIX_ROWS; row++)
     {
         rtc_pin_deinit(MATRIX_ROW_PINS[row]);
     }
@@ -67,7 +67,7 @@ void Matrix::rtc_matrix_deinit(void)
 void Matrix::rtc_matrix_init(void)
 {
 
-    for (uint8_t col = 0; col < MATRIX_COLS; col++)
+    for (uint8_t col = 0; col < SECONDARY_MATRIX_COLS; col++)
     {
 
         if (rtc_gpio_is_valid_gpio(MATRIX_COL_PINS[col]) == 1)
@@ -80,7 +80,7 @@ void Matrix::rtc_matrix_init(void)
     }
 
     uint64_t rtc_mask = 0;
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++)
+    for (uint8_t row = 0; row < SECONDARY_MATRIX_ROWS; row++)
     {
         if (rtc_gpio_is_valid_gpio(MATRIX_ROW_PINS[row]) == 1)
         {
@@ -146,7 +146,7 @@ void Matrix::scan_column(uint8_t col, uint64_t currentTime)
 {
     gpio_set_level(MATRIX_COL_PINS[col], 1);
 
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++)
+    for (uint8_t row = 0; row < SECONDARY_MATRIX_ROWS; row++)
     {
         debounce_key(row, col, currentTime);
     }
@@ -158,7 +158,7 @@ void Matrix::scan_matrix()
 {
     uint64_t currentTime = esp_timer_get_time();
 
-    for (uint8_t col = 0; col < MATRIX_COLS; col++)
+    for (uint8_t col = 0; col < SECONDARY_MATRIX_COLS; col++)
     {
         scan_column(col, currentTime);
     }

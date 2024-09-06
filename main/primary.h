@@ -7,6 +7,7 @@
 #include <string.h>
 #include <vector>
 #include <array>
+#include <map>
 
 #include "esp_log.h"
 #include "esp_now.h"
@@ -17,26 +18,15 @@
 
 class Primary
 {
-    static const char *tag;
-
-    struct MacAddress
+    struct SecondayPeer
     {
-        uint8_t addr[6];
+        DeviceRole role;
+        uint64_t lastPacketTime;
+        bool sendSuccesful = true;
     };
 
-    std::vector<MacAddress> peer_list;
-
-    bool is_peer_in_list(const uint8_t mac_addr[6])
-    {
-        for (const auto &mac : peer_list)
-        {
-            if (memcmp(mac.addr, mac_addr, 6) == 0)
-            {
-                return true; // MAC address found in the list
-            }
-        }
-        return false; // MAC address not found in the list
-    }
+    using MacAddress = std::array<uint8_t, 6U>;
+    std::map<MacAddress, SecondayPeer> peer_map;
 
     struct QueueItem
     {
@@ -47,20 +37,7 @@ class Primary
     QueueHandle_t recv_queue;
 
     static void sendCallback(const uint8_t *mac_addr, esp_now_send_status_t status);
-
     static void recvCallback(const esp_now_recv_info_t *esp_now_info, const uint8_t *data, int data_len);
-
-public:
-    Primary(Primary const &) = delete;
-    void operator=(Primary const &) = delete;
-
-    Primary();
-
-    static Primary &get()
-    {
-        static Primary instance;
-        return instance;
-    }
 
     enum State
     {
@@ -76,7 +53,21 @@ public:
 
     static void espnow_process_recv_task(void *p);
 
-    void registerSecondary(uint8_t mac_addr[6]);
+    void updatePeerInfo(MacAddress addr, DeviceRole role);
+
+    void checkPeerAlive();
+
+public:
+    Primary(Primary const &) = delete;
+    void operator=(Primary const &) = delete;
+
+    Primary();
+
+    static Primary &get()
+    {
+        static Primary instance;
+        return instance;
+    }
 
     void run();
 };

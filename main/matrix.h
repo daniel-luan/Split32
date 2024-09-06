@@ -30,10 +30,10 @@ class Matrix
     void rtc_matrix_deinit(void);
     void rtc_matrix_init(void);
 
-    uint32_t DEBOUNCE_MATRIX[MATRIX_ROWS][MATRIX_COLS] = {0};
+    uint32_t DEBOUNCE_MATRIX[SECONDARY_MATRIX_ROWS][SECONDARY_MATRIX_COLS] = {0};
 
-    uint8_t MATRIX_STATE[MATRIX_ROWS][MATRIX_COLS] = {0};
-    uint8_t PREV_MATRIX_STATE[MATRIX_ROWS][MATRIX_COLS] = {0};
+    uint8_t MATRIX_STATE[SECONDARY_MATRIX_ROWS][SECONDARY_MATRIX_COLS] = {0};
+    uint8_t PREV_MATRIX_STATE[SECONDARY_MATRIX_ROWS][SECONDARY_MATRIX_COLS] = {0};
 
     void update_matrix_state(uint8_t row, uint8_t col, uint8_t curState);
     void debounce_key(uint8_t row, uint8_t col, uint64_t currentTime);

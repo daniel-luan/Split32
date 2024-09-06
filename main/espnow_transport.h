@@ -13,12 +13,14 @@ enum PacketType
 {
     PACKET_TYPE_REGISTRATION = 0,
     PACKET_TYPE_ACK,
+    PACKET_TYPE_PING,
     PACKET_TYPE_MATRIX,
     PACKET_TYPE_INFO,
 };
 
 enum DeviceRole
 {
+    ROLE_UNKNOWN = -1,
     ROLE_PRIMARY = 0,
     ROLE_LEFT,
     ROLE_RIGHT,

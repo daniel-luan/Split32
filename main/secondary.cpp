@@ -5,7 +5,7 @@
 
 #include "status_led.h"
 
-const char *Secondary::tag = "SecondaryTransport";
+const char *SECONDARY_TAG = "SecondaryTransport";
 
 Secondary::Secondary()
 {
@@ -18,8 +18,8 @@ void Secondary::init()
     assert(state == INIT);
 
     ESP_ERROR_CHECK(esp_now_init());
-    ESP_ERROR_CHECK(esp_now_register_send_cb(get().sendCallback));
-    ESP_ERROR_CHECK(esp_now_register_recv_cb(get().recvCallback));
+    ESP_ERROR_CHECK(esp_now_register_send_cb(Secondary::sendCallback));
+    ESP_ERROR_CHECK(esp_now_register_recv_cb(Secondary::recvCallback));
 
     esp_now_peer_info_t broadcast_peer = {};
     memset(broadcast_peer.peer_addr, 0xFF, 6); // Broadcast address
@@ -36,11 +36,11 @@ void Secondary::sendCallback(const uint8_t *mac_addr, esp_now_send_status_t stat
 
     if (status == ESP_NOW_SEND_SUCCESS)
     {
-        ESP_LOGI(tag, "Message sent successfully");
+        ESP_LOGI(SECONDARY_TAG, "Message sent successfully");
     }
     else
     {
-        ESP_LOGI(tag, "Failed to send message");
+        ESP_LOGI(SECONDARY_TAG, "Failed to send message");
     }
 }
 
@@ -66,7 +66,7 @@ void Secondary::espnow_process_recv_task(void *p)
             continue;
         }
 
-        ESP_LOGI(tag, "Got item %d from " MACSTR, item.message.header.packetType, MAC2STR(item.mac_addr));
+        ESP_LOGI(SECONDARY_TAG, "Got item %d from " MACSTR, item.message.header.packetType, MAC2STR(item.mac_addr));
 
         if (item.message.header.packetType == PacketType::PACKET_TYPE_ACK)
         {
@@ -81,7 +81,7 @@ void Secondary::espnow_process_recv_task(void *p)
             ESP_ERROR_CHECK(esp_now_add_peer(&broadcast_peer));
 
             get().state = RUNNING;
-            ESP_LOGI(tag, "State: RUNNING");
+            ESP_LOGI(SECONDARY_TAG, "State: RUNNING");
         }
     }
 }
@@ -97,7 +97,7 @@ void Secondary::key_event_task(void *pvParameters)
         if (xQueueReceive(params->key_event_queue, &event, portMAX_DELAY) == pdPASS)
         {
             // Process the key event (e.g., log it or handle the key press)
-            ESP_LOGI(tag, "Key event - Row: %d, Col: %d, State: %d", event.row, event.col, event.state);
+            ESP_LOGI(SECONDARY_TAG, "Key event - Row: %d, Col: %d, State: %d", event.row, event.col, event.state);
             params->secondary->sendKeyEventToPrimary(event);
         }
     }
@@ -106,7 +106,7 @@ void Secondary::key_event_task(void *pvParameters)
 void Secondary::registerWithPrimary()
 {
     const uint8_t destination_mac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-    ESP_LOGI(tag, "Sending PACKET_TYPE_REGISTRATION");
+    ESP_LOGI(SECONDARY_TAG, "Sending PACKET_TYPE_REGISTRATION");
     Packet message = {PACKET_TYPE_REGISTRATION, DEVICE_ROLE};
     ESP_ERROR_CHECK(esp_now_send(destination_mac, (uint8_t *)&message, sizeof(message))); // NULL for broadcast
     vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -116,7 +116,7 @@ void Secondary::sendKeyEventToPrimary(key_event_t key_event)
 {
     assert(state == RUNNING);
 
-    ESP_LOGI(tag, "Sending PACKET_TYPE_MATRIX");
+    ESP_LOGI(SECONDARY_TAG, "Sending PACKET_TYPE_MATRIX");
     MatrixPacket matrixPacket;
 
     memcpy(&matrixPacket.keyEvent, &key_event, sizeof(key_event_t));
@@ -141,7 +141,7 @@ void Secondary::run()
         // On state transition
         if (lastState != currentState)
         {
-            ESP_LOGI(tag, "Entering State %d", currentState);
+            ESP_LOGI(SECONDARY_TAG, "Entering State %d", currentState);
 
             if (currentState == INIT)
             {

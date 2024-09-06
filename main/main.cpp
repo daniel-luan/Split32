@@ -370,12 +370,10 @@ extern "C" void app_main(void)
 
     if constexpr (DEVICE_ROLE == ROLE_PRIMARY)
     {
-        Primary &primary = Primary::get();
-        primary.run();
-    }
+        Primary::get().run();
+        }
     else
     {
-        Secondary &secondary = Secondary::get();
-        secondary.run();
+        Secondary::get().run();
     }
 }
