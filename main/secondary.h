@@ -40,15 +40,16 @@ class Secondary
 
     void init();
 
-    static void espnow_process_recv_task(void *p);
+    static void espnowProcessRecvTask(void *p);
 
     typedef struct
     {
-        QueueHandle_t key_event_queue;
+        QueueHandle_t keyEventQueue;
         Secondary *secondary;
-    } key_event_task_params_t;
-    static void key_event_task(void *pvParameters);
+    } keyEventTask_params_t;
+    static void keyEventTask(void *pvParameters);
 
+    int64_t lastRegistrationTime = -1000000;
     void registerWithPrimary();
 
     void sendKeyEventToPrimary(key_event_t key_event);

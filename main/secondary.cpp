@@ -55,7 +55,7 @@ void Secondary::recvCallback(const esp_now_recv_info_t *esp_now_info, const uint
     xQueueSend(get().recv_queue, &item, portMAX_DELAY);
 }
 
-void Secondary::espnow_process_recv_task(void *p)
+void Secondary::espnowProcessRecvTask(void *p)
 {
 
     QueueItem item;
@@ -81,20 +81,19 @@ void Secondary::espnow_process_recv_task(void *p)
             ESP_ERROR_CHECK(esp_now_add_peer(&broadcast_peer));
 
             get().state = RUNNING;
-            ESP_LOGI(SECONDARY_TAG, "State: RUNNING");
         }
     }
 }
 
-void Secondary::key_event_task(void *pvParameters)
+void Secondary::keyEventTask(void *pvParameters)
 {
-    key_event_task_params_t *params = (key_event_task_params_t *)pvParameters;
+    keyEventTask_params_t *params = (keyEventTask_params_t *)pvParameters;
     key_event_t event;
 
     while (1)
     {
         // Wait for an event from the queue
-        if (xQueueReceive(params->key_event_queue, &event, portMAX_DELAY) == pdPASS)
+        if (xQueueReceive(params->keyEventQueue, &event, portMAX_DELAY) == pdPASS)
         {
             // Process the key event (e.g., log it or handle the key press)
             ESP_LOGI(SECONDARY_TAG, "Key event - Row: %d, Col: %d, State: %d", event.row, event.col, event.state);
@@ -105,11 +104,16 @@ void Secondary::key_event_task(void *pvParameters)
 
 void Secondary::registerWithPrimary()
 {
+    if (esp_timer_get_time() - lastRegistrationTime < 1000000)
+    {
+        return;
+    }
+
+    lastRegistrationTime = esp_timer_get_time();
     const uint8_t destination_mac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
     ESP_LOGI(SECONDARY_TAG, "Sending PACKET_TYPE_REGISTRATION");
     Packet message = {PACKET_TYPE_REGISTRATION, DEVICE_ROLE};
     ESP_ERROR_CHECK(esp_now_send(destination_mac, (uint8_t *)&message, sizeof(message))); // NULL for broadcast
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 
 void Secondary::sendKeyEventToPrimary(key_event_t key_event)
@@ -131,12 +135,16 @@ void Secondary::run()
 
     Matrix m;
 
+    keyEventTask_params_t params = {
+        .keyEventQueue = m.keyEventQueue,
+        .secondary = this};
+
     State lastState = UNKNOWN;
 
     while (true)
     {
-
-        State currentState = state;
+        auto currentTime = esp_timer_get_time();
+        auto currentState = state;
 
         // On state transition
         if (lastState != currentState)
@@ -153,19 +161,16 @@ void Secondary::run()
             }
             else if (currentState == REGISTERING)
             {
-                xTaskCreate(Secondary::espnow_process_recv_task, "recv_task", 8192, NULL, 4, NULL);
+                xTaskCreate(Secondary::espnowProcessRecvTask, "recv_task", 8192, NULL, 4, NULL);
             }
             else if (currentState == RUNNING)
             {
-                key_event_task_params_t params = {
-                    .key_event_queue = m.key_event_queue,
-                    .secondary = this};
-
-                xTaskCreate(Secondary::key_event_task, "key_event_task", 8192, (void *)&params, 4, NULL);
+                xTaskCreate(Secondary::keyEventTask, "keyEventTask", 8192, (void *)&params, 4, NULL);
+                m.lastKeyPress = currentTime;
             }
-        }
 
-        lastState = currentState;
+            lastState = currentState;
+        }
 
         // Run code for current state
         if (currentState == INIT)
@@ -180,7 +185,13 @@ void Secondary::run()
         }
         else if (currentState == RUNNING)
         {
-            m.scan_matrix();
+            m.scanMatrix();
+
+            if (currentTime - m.lastKeyPress > SLEEP_US)
+            {
+                ESP_LOGE(SECONDARY_TAG, "Sleeping");
+                m.sleep();
+            }
         }
         vTaskDelay(10 / portTICK_PERIOD_MS);
     }

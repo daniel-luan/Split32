@@ -26,13 +26,13 @@ void Primary::sendCallback(const uint8_t *mac_addr, esp_now_send_status_t status
 {
     const auto addr = std::to_array(*reinterpret_cast<const uint8_t(*)[6]>(mac_addr));
 
-    auto it = get().peer_map.find(addr);
+    auto it = get().peerMap.find(addr);
 
     if (status == ESP_NOW_SEND_SUCCESS)
     {
         ESP_LOGI(PRIMARY_TAG, "Message sent successfully");
 
-        if (it != get().peer_map.end())
+        if (it != get().peerMap.end())
         {
             it->second.sendSuccesful = true;
             it->second.lastPacketTime = esp_timer_get_time();
@@ -42,7 +42,7 @@ void Primary::sendCallback(const uint8_t *mac_addr, esp_now_send_status_t status
     {
         ESP_LOGI(PRIMARY_TAG, "Failed to send message");
 
-        if (it != get().peer_map.end())
+        if (it != get().peerMap.end())
         {
             it->second.sendSuccesful = false;
         }
@@ -60,7 +60,7 @@ void Primary::recvCallback(const esp_now_recv_info_t *esp_now_info, const uint8_
     xQueueSend(get().recv_queue, &item, portMAX_DELAY);
 }
 
-void Primary::espnow_process_recv_task(void *p)
+void Primary::espnowProcessRecvTask(void *p)
 {
     QueueItem item;
     for (;;)
@@ -85,14 +85,30 @@ void Primary::espnow_process_recv_task(void *p)
         else if (item.message.header.packetType == PacketType::PACKET_TYPE_MATRIX)
         {
             auto event = std::get<MatrixPacket>(item.message.payload);
-            ESP_LOGI(PRIMARY_TAG, "Key event - Row: %d, Col: %d, State: %d", event.keyEvent.row, event.keyEvent.col, event.keyEvent.state);
+
+            auto row = event.keyEvent.row;
+            auto col = event.keyEvent.col;
+            if (item.message.header.splitSide == ROLE_LEFT)
+            {
+                row += LEFT_MATRIX_ROW_OFFSET;
+                col += LEFT_MATRIX_COL_OFFSET;
+            }
+            else if (item.message.header.splitSide == ROLE_RIGHT)
+            {
+                row += RIGHT_MATRIX_ROW_OFFSET;
+                col += RIGHT_MATRIX_COL_OFFSET;
+            }
+
+            ESP_LOGI(PRIMARY_TAG, "Key event - Row: %d, Col: %d, State: %d", row, col, event.keyEvent.state);
+
+            get().MATRIX_STATE[row][col] = event.keyEvent.state;
         }
     }
 }
 
 void Primary::updatePeerInfo(MacAddress addr, DeviceRole role)
 {
-    auto inserted = peer_map.insert({addr, {}});
+    auto inserted = peerMap.insert({addr, {}});
 
     if (inserted.second)
     {
@@ -119,15 +135,18 @@ void Primary::checkPeerAlive()
 {
     auto currentTime = esp_timer_get_time();
 
-    auto it = peer_map.begin();
-    while (it != peer_map.end())
+    auto it = peerMap.begin();
+    while (it != peerMap.end())
     {
         if (!it->second.sendSuccesful)
         {
             ESP_LOGI(PRIMARY_TAG, "Send failed to Peer " MACSTR, MAC2STR(it->first.data()));
-            it = peer_map.erase(it);
+            esp_now_del_peer(it->first.data());
+
+            onPeerDisconnect(it->second.role);
+            it = peerMap.erase(it);
         }
-        else if (currentTime - it->second.lastPacketTime > 2000000)
+        else if (currentTime - it->second.lastPacketTime > PING_INTERVAL)
         {
             ESP_LOGI(PRIMARY_TAG, "Sending PACKET_TYPE_PING to " MACSTR " to check alive", MAC2STR(it->first.data()));
             it->second.lastPacketTime = currentTime;
@@ -165,11 +184,10 @@ void Primary::run()
             }
             else if (state == RUNNING)
             {
-                xTaskCreate(Primary::espnow_process_recv_task, "recv_task", 8192, NULL, 4, NULL);
+                xTaskCreate(Primary::espnowProcessRecvTask, "recv_task", 8192, NULL, 4, NULL);
             }
+            lastState = currentState;
         }
-
-        lastState = currentState;
 
         if (state == INIT)
         {
@@ -183,5 +201,32 @@ void Primary::run()
         }
 
         vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
+}
+
+void Primary::onPeerDisconnect(DeviceRole role)
+{
+    ESP_LOGI(PRIMARY_TAG, "Clearing peer matrix for side %d", role);
+
+    // Clear peer matrix on the primary
+    int row_offset = 0;
+    int col_offset = 0;
+    if (role == ROLE_LEFT)
+    {
+        row_offset += LEFT_MATRIX_ROW_OFFSET;
+        col_offset += LEFT_MATRIX_COL_OFFSET;
+    }
+    else if (role == ROLE_RIGHT)
+    {
+        row_offset += RIGHT_MATRIX_ROW_OFFSET;
+        col_offset += RIGHT_MATRIX_COL_OFFSET;
+    }
+
+    for (int row = row_offset; row < SECONDARY_MATRIX_ROWS + row_offset; row++)
+    {
+        for (int col = col_offset; col < SECONDARY_MATRIX_COLS + col_offset; col++)
+        {
+            MATRIX_STATE[row][col] = 0;
+        }
     }
 }

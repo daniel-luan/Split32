@@ -26,7 +26,7 @@ class Primary
     };
 
     using MacAddress = std::array<uint8_t, 6U>;
-    std::map<MacAddress, SecondayPeer> peer_map;
+    std::map<MacAddress, SecondayPeer> peerMap;
 
     struct QueueItem
     {
@@ -51,11 +51,15 @@ class Primary
 
     void init();
 
-    static void espnow_process_recv_task(void *p);
+    static void espnowProcessRecvTask(void *p);
 
     void updatePeerInfo(MacAddress addr, DeviceRole role);
 
     void checkPeerAlive();
+
+    uint8_t MATRIX_STATE[PRIMARY_MATRIX_ROWS][PRIMARY_MATRIX_COLS] = {0};
+
+    void onPeerDisconnect(DeviceRole role);
 
 public:
     Primary(Primary const &) = delete;
