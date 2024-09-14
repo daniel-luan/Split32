@@ -91,6 +91,8 @@ void Matrix::scanColumn(uint8_t col, uint64_t currentTime)
 {
     gpio_set_level(MATRIX_COL_PINS[col], 1);
 
+    vTaskDelay(0.1 / portTICK_PERIOD_MS);
+
     for (uint8_t row = 0; row < SECONDARY_MATRIX_ROWS; row++)
     {
         debounceKey(row, col, currentTime);

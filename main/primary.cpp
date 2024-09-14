@@ -30,8 +30,6 @@ void Primary::sendCallback(const uint8_t *mac_addr, esp_now_send_status_t status
 
     if (status == ESP_NOW_SEND_SUCCESS)
     {
-        ESP_LOGI(PRIMARY_TAG, "Message sent successfully");
-
         if (it != get().peerMap.end())
         {
             it->second.sendSuccesful = true;
@@ -62,6 +60,7 @@ void Primary::recvCallback(const esp_now_recv_info_t *esp_now_info, const uint8_
 
 void Primary::espnowProcessRecvTask(void *p)
 {
+    ESP_LOGI(PRIMARY_TAG, "Listening for packets");
     QueueItem item;
     for (;;)
     {
@@ -124,10 +123,7 @@ bool Primary::updatePeerInfo(MacAddress addr, DeviceRole role)
         peerMap[addr] = {};
     }
 
-    if (role != ROLE_UNKNOWN)
-    {
-        peerMap[addr].role = role;
-    }
+    peerMap[addr].role = role;
 
     peerMap[addr].lastPacketTime = esp_timer_get_time();
     peerMap[addr].sendSuccesful = true;
@@ -152,7 +148,7 @@ void Primary::checkPeerAlive()
         }
         else if (currentTime - it->second.lastPacketTime > PING_INTERVAL)
         {
-            ESP_LOGI(PRIMARY_TAG, "Sending PACKET_TYPE_PING to " MACSTR " to check alive", MAC2STR(it->first.data()));
+            ESP_LOGI(PRIMARY_TAG, "Sending PACKET_TYPE_PING to " MACSTR, MAC2STR(it->first.data()));
             it->second.lastPacketTime = currentTime;
             Packet message = {PACKET_TYPE_PING, ROLE_PRIMARY};
             ESP_ERROR_CHECK(esp_now_send(it->first.data(), (uint8_t *)&message, sizeof(message)));

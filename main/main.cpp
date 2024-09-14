@@ -343,17 +343,25 @@ extern "C" void app_main(void)
     if constexpr (DISPLAY_SUPPORT)
     {
         ESP_LOGI(TAG, "Init Display");
-        Display display;
+        Display display{
+            DISPLAY_CS_PIN,
+            DISPLAY_MOSI_PIN,
+            DISPLAY_SCLK_PIN,
+            DISPLAY_BUSY_PIN,
+            DISPLAY_RST_PIN,
+            DISPLAY_DC_PIN,
+            DISPLAY_WIDTH,
+            DISPLAY_HEIGHT};
 
-        // display.fill_screen();
-        // display.refresh();
+        display.fill_screen();
+        display.refresh();
 
-        // display.power_off();
+        display.power_off();
 
-        // display.write_display(image, image);
-        // display.refresh();
+        display.write_display(image, image);
+        display.refresh();
 
-        // display.power_off();
+        display.power_off();
     }
 
     STATUS_LED::get().set(StatusColor::White);

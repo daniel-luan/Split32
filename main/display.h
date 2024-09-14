@@ -14,20 +14,19 @@
 
 #include "config.h"
 
-
 class Display
 {
     spi_device_handle_t spi;
 
-    gpio_num_t CS_PIN = GPIO_NUM_10;
-    gpio_num_t MOSI_PIN = GPIO_NUM_11;
-    gpio_num_t SCLK_PIN = GPIO_NUM_12;
-    gpio_num_t BUSY_PIN = GPIO_NUM_3;
-    gpio_num_t RST_PIN = GPIO_NUM_13;
-    gpio_num_t DC_PIN = GPIO_NUM_9;
+    gpio_num_t CS_PIN;
+    gpio_num_t MOSI_PIN;
+    gpio_num_t SCLK_PIN;
+    gpio_num_t BUSY_PIN;
+    gpio_num_t RST_PIN;
+    gpio_num_t DC_PIN;
 
-    int WIDTH = 128;
-    int HEIGHT = 296;
+    int WIDTH;
+    int HEIGHT;
 
     bool _power_is_on = false;
 
@@ -57,21 +56,21 @@ class Display
 
 public:
     Display(
-        gpio_num_t CS_PIN = DISPLAY_CS_PIN,
-        gpio_num_t MOSI_PIN = DISPLAY_MOSI_PIN,
-        gpio_num_t SCLK_PIN = DISPLAY_SCLK_PIN,
-        gpio_num_t BUSY_PIN = DISPLAY_BUSY_PIN,
-        gpio_num_t RST_PIN = DISPLAY_RST_PIN,
-        gpio_num_t DC_PIN = DISPLAY_DC_PIN,
-        int WIDTH = DISPLAY_WIDTH,
-        int HEIGHT = DISPLAY_HEIGHT) : CS_PIN(CS_PIN),
-                                       MOSI_PIN(MOSI_PIN),
-                                       SCLK_PIN(SCLK_PIN),
-                                       BUSY_PIN(BUSY_PIN),
-                                       RST_PIN(RST_PIN),
-                                       DC_PIN(DC_PIN),
-                                       WIDTH(WIDTH),
-                                       HEIGHT(HEIGHT)
+        gpio_num_t CS_PIN,
+        gpio_num_t MOSI_PIN,
+        gpio_num_t SCLK_PIN,
+        gpio_num_t BUSY_PIN,
+        gpio_num_t RST_PIN,
+        gpio_num_t DC_PIN,
+        int WIDTH,
+        int HEIGHT) : CS_PIN(CS_PIN),
+                      MOSI_PIN(MOSI_PIN),
+                      SCLK_PIN(SCLK_PIN),
+                      BUSY_PIN(BUSY_PIN),
+                      RST_PIN(RST_PIN),
+                      DC_PIN(DC_PIN),
+                      WIDTH(WIDTH),
+                      HEIGHT(HEIGHT)
     {
         init_gpio();
         init_spi();
@@ -82,9 +81,8 @@ public:
     void power_off();
 
     void fill_screen(uint8_t bw = 0xFF, uint8_t red = 0x00);
-
-    void refresh();
     void write_display(const uint8_t bw[4736], const uint8_t red[4736]);
+    void refresh();
 };
 
 #endif

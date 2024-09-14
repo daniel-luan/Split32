@@ -36,7 +36,6 @@ void Secondary::sendCallback(const uint8_t *mac_addr, esp_now_send_status_t stat
 
     if (status == ESP_NOW_SEND_SUCCESS)
     {
-        ESP_LOGI(SECONDARY_TAG, "Message sent successfully");
     }
     else
     {
@@ -130,13 +129,7 @@ void Secondary::sendKeyEventToPrimary(key_event_t key_event)
 void Secondary::run()
 {
 
-    STATUS_LED::get().set(StatusColor::Green);
-
     Matrix m;
-
-    keyEventTask_params_t params = {
-        .keyEventQueue = m.keyEventQueue,
-        .secondary = this};
 
     State lastState = UNKNOWN;
 
@@ -164,6 +157,13 @@ void Secondary::run()
             }
             else if (currentState == RUNNING)
             {
+
+                STATUS_LED::get().set(StatusColor::Green);
+
+                keyEventTask_params_t params = {
+                    .keyEventQueue = m.keyEventQueue,
+                    .secondary = this};
+
                 xTaskCreate(Secondary::keyEventTask, "keyEventTask", 8192, (void *)&params, 4, NULL);
                 m.lastKeyPress = currentTime;
             }
@@ -189,9 +189,12 @@ void Secondary::run()
             if (currentTime - m.lastKeyPress > SLEEP_US)
             {
                 ESP_LOGE(SECONDARY_TAG, "Sleeping");
+                
+                STATUS_LED::get().off();
                 m.sleep();
             }
         }
+
         vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 }
