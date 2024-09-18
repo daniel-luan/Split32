@@ -31,8 +31,8 @@ enum DeviceRole
 
 // ========== Secondary Device Configs ==========
 
-#define SLEEP_US 1 * 60 * 1000 * 1000
-// #define SLEEP_US 5 * 1000 * 1000
+// #define DEEP_SLEEP_DELAY_US 1 * 60 * 1000 * 1000
+#define DEEP_SLEEP_DELAY_US 10 * 1000 * 1000
 
 #define DEBOUNCE 4000
 const gpio_num_t MATRIX_ROW_PINS[] = {

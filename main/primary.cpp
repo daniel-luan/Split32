@@ -3,6 +3,8 @@
 #include "esp_log.h"
 #include "esp_mac.h"
 
+#include "status_led.h"
+
 const char *PRIMARY_TAG = "PrimaryTransport";
 
 Primary::Primary()
@@ -72,18 +74,25 @@ void Primary::espnowProcessRecvTask(void *p)
 
             const auto mac_addr = std::to_array(item.mac_addr);
 
-            if (!get().updatePeerInfo(mac_addr, item.message.header.splitSide))
+            auto peerResult = get().updatePeerInfo(mac_addr, item.message.header.splitSide);
+            if (peerResult == PeerUpdateResult::PEER_LIST_FULL)
             {
                 continue;
             }
+            else if (peerResult == PeerUpdateResult::PEER_ADDED && item.message.header.packetType != PACKET_TYPE_REGISTRATION)
+            {
+                ESP_LOGI(PRIMARY_TAG, "Sending PACKET_TYPE_INFO_REQ to " MACSTR, MAC2STR(item.mac_addr));
+                Packet message = {PACKET_TYPE_INFO_REQ, ROLE_PRIMARY};
+                ESP_ERROR_CHECK(esp_now_send(item.mac_addr, (uint8_t *)&message, sizeof(message))); // NULL for broadcast
+            }
 
-            if (item.message.header.packetType == PacketType::PACKET_TYPE_REGISTRATION)
+            if (item.message.header.packetType == PACKET_TYPE_REGISTRATION)
             {
                 ESP_LOGI(PRIMARY_TAG, "Sending PACKET_TYPE_ACK to " MACSTR, MAC2STR(item.mac_addr));
                 Packet message = {PACKET_TYPE_ACK, ROLE_PRIMARY};
                 ESP_ERROR_CHECK(esp_now_send(item.mac_addr, (uint8_t *)&message, sizeof(message))); // NULL for broadcast
             }
-            else if (item.message.header.packetType == PacketType::PACKET_TYPE_MATRIX)
+            else if (item.message.header.packetType == PACKET_TYPE_MATRIX)
             {
                 auto event = std::get<MatrixPacket>(item.message.payload);
 
@@ -98,7 +107,7 @@ void Primary::espnowProcessRecvTask(void *p)
     }
 }
 
-bool Primary::updatePeerInfo(MacAddress addr, DeviceRole role)
+Primary::PeerUpdateResult Primary::updatePeerInfo(MacAddress addr, DeviceRole role)
 {
 
     auto it = peerMap.find(addr);
@@ -108,7 +117,7 @@ bool Primary::updatePeerInfo(MacAddress addr, DeviceRole role)
         if (peerMap.size() + 1 > EXPECTED_PEERS)
         {
             ESP_LOGE(PRIMARY_TAG, "Max expected number of %d peers reached, ignoring message", EXPECTED_PEERS);
-            return false;
+            return PeerUpdateResult::PEER_LIST_FULL;
         }
 
         ESP_LOGI(PRIMARY_TAG, "New Peer Registering " MACSTR " Role: %d", MAC2STR(addr), role);
@@ -120,18 +129,20 @@ bool Primary::updatePeerInfo(MacAddress addr, DeviceRole role)
         broadcast_peer.encrypt = false;
         ESP_ERROR_CHECK(esp_now_add_peer(&broadcast_peer));
 
-        peerMap[addr] = {};
+        peerMap[addr] = {.role = role, .lastPacketTime = esp_timer_get_time(), .sendSuccesful = true};
+
+        return PeerUpdateResult::PEER_ADDED;
     }
+    else
+    {
+        it->second.lastPacketTime = esp_timer_get_time();
+        it->second.sendSuccesful = true;
 
-    peerMap[addr].role = role;
-
-    peerMap[addr].lastPacketTime = esp_timer_get_time();
-    peerMap[addr].sendSuccesful = true;
-
-    return true;
+        return PeerUpdateResult::PEER_EXISTING;
+    }
 }
 
-void Primary::checkPeerAlive()
+void Primary::checkPeersConnected()
 {
     auto currentTime = esp_timer_get_time();
 
@@ -172,7 +183,7 @@ void Primary::run()
         // On state transition
         if (lastState != currentState)
         {
-            ESP_LOGI(PRIMARY_TAG, "Entering State %d", currentState);
+            ESP_LOGI(PRIMARY_TAG, "Entering State %d from %d", currentState, lastState);
 
             if (state == INIT)
             {
@@ -184,6 +195,8 @@ void Primary::run()
             }
             else if (state == RUNNING)
             {
+                STATUS_LED::get().set(StatusColor::Green);
+
                 xTaskCreate(Primary::espnowProcessRecvTask, "recv_task", 8192, NULL, 4, NULL);
             }
             lastState = currentState;
@@ -197,7 +210,7 @@ void Primary::run()
         }
         else if (state == RUNNING)
         {
-            checkPeerAlive();
+            checkPeersConnected();
         }
 
         vTaskDelay(10 / portTICK_PERIOD_MS);

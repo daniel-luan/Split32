@@ -40,6 +40,7 @@ void Secondary::sendCallback(const uint8_t *mac_addr, esp_now_send_status_t stat
     else
     {
         ESP_LOGI(SECONDARY_TAG, "Failed to send message");
+        get().state = REGISTERING;
     }
 }
 
@@ -65,19 +66,30 @@ void Secondary::espnowProcessRecvTask(void *p)
         {
             ESP_LOGI(SECONDARY_TAG, "Got item %d from " MACSTR, item.message.header.packetType, MAC2STR(item.mac_addr));
 
-            if (item.message.header.packetType == PacketType::PACKET_TYPE_ACK)
+            if (item.message.header.packetType == PACKET_TYPE_ACK)
             {
+                ESP_LOGI(SECONDARY_TAG, "New Primary Address " MACSTR, MAC2STR(item.mac_addr));
 
-                memcpy(get().primary_address, item.mac_addr, 6);
+                if (memcmp(get().primary_address, item.mac_addr, 6) != 0)
+                {
 
-                esp_now_peer_info_t broadcast_peer = {};
-                memcpy(broadcast_peer.peer_addr, item.mac_addr, 6);
-                broadcast_peer.channel = 0;
-                broadcast_peer.ifidx = WIFI_IF_STA;
-                broadcast_peer.encrypt = false;
-                ESP_ERROR_CHECK(esp_now_add_peer(&broadcast_peer));
+                    memcpy(get().primary_address, item.mac_addr, 6);
+
+                    esp_now_peer_info_t broadcast_peer = {};
+                    memcpy(broadcast_peer.peer_addr, item.mac_addr, 6);
+                    broadcast_peer.channel = 0;
+                    broadcast_peer.ifidx = WIFI_IF_STA;
+                    broadcast_peer.encrypt = false;
+                    ESP_ERROR_CHECK(esp_now_add_peer(&broadcast_peer));
+                }
 
                 get().state = RUNNING;
+            }
+            else if (item.message.header.packetType == PACKET_TYPE_INFO_REQ)
+            {
+                ESP_LOGI(SECONDARY_TAG, "Sending PACKET_TYPE_REGISTRATION");
+                Packet message = {PACKET_TYPE_REGISTRATION, DEVICE_ROLE, RegistrationPacket{}};
+                ESP_ERROR_CHECK(esp_now_send(item.mac_addr, (uint8_t *)&message, sizeof(message))); // NULL for broadcast
             }
         }
     }
@@ -110,7 +122,8 @@ void Secondary::registerWithPrimary()
     lastRegistrationTime = esp_timer_get_time();
     const uint8_t destination_mac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
     ESP_LOGI(SECONDARY_TAG, "Sending PACKET_TYPE_REGISTRATION");
-    Packet message = {PACKET_TYPE_REGISTRATION, DEVICE_ROLE};
+
+    Packet message = {PACKET_TYPE_REGISTRATION, DEVICE_ROLE, RegistrationPacket{}};
     ESP_ERROR_CHECK(esp_now_send(destination_mac, (uint8_t *)&message, sizeof(message))); // NULL for broadcast
 }
 
@@ -141,7 +154,7 @@ void Secondary::run()
         // On state transition
         if (lastState != currentState)
         {
-            ESP_LOGI(SECONDARY_TAG, "Entering State %d", currentState);
+            ESP_LOGI(SECONDARY_TAG, "Entering State %d from %d", currentState, lastState);
 
             if (currentState == INIT)
             {
@@ -153,22 +166,29 @@ void Secondary::run()
             }
             else if (currentState == REGISTERING)
             {
-                xTaskCreate(Secondary::espnowProcessRecvTask, "recv_task", 8192, NULL, 4, NULL);
+                if (recvTaskHandle == NULL)
+                {
+                    xTaskCreate(Secondary::espnowProcessRecvTask, "recv_task", 8192, NULL, 4, &recvTaskHandle);
+                }
             }
             else if (currentState == RUNNING)
             {
 
                 STATUS_LED::get().set(StatusColor::Green);
 
-                keyEventTask_params_t params = {
-                    .keyEventQueue = m.keyEventQueue,
-                    .secondary = this};
+                if (keyEventTaskHandle == NULL)
+                {
+                    keyEventTask_params_t params = {
+                        .keyEventQueue = m.keyEventQueue,
+                        .secondary = this};
 
-                xTaskCreate(Secondary::keyEventTask, "keyEventTask", 8192, (void *)&params, 4, NULL);
-                m.lastKeyPress = currentTime;
+                    xTaskCreate(Secondary::keyEventTask, "keyEventTask", 8192, (void *)&params, 4, &keyEventTaskHandle);
+                }
             }
 
             lastState = currentState;
+
+            lastEventTime = currentTime;
         }
 
         // Run code for current state
@@ -185,14 +205,14 @@ void Secondary::run()
         else if (currentState == RUNNING)
         {
             m.scanMatrix();
+        }
 
-            if (currentTime - m.lastKeyPress > SLEEP_US)
-            {
-                ESP_LOGE(SECONDARY_TAG, "Sleeping");
-                
-                STATUS_LED::get().off();
-                m.sleep();
-            }
+        if (currentTime - std::max(lastEventTime, m.lastKeyPress) > DEEP_SLEEP_DELAY_US)
+        {
+            ESP_LOGE(SECONDARY_TAG, "Sleeping");
+
+            STATUS_LED::get().off();
+            m.sleep();
         }
 
         vTaskDelay(10 / portTICK_PERIOD_MS);

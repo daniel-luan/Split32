@@ -364,13 +364,11 @@ extern "C" void app_main(void)
         display.power_off();
     }
 
-    STATUS_LED::get().set(StatusColor::White);
+    STATUS_LED::get().set(StatusColor::Red);
 
     ESP_LOGI(TAG, "Init NVS");
     init_nvs();
-
-    STATUS_LED::get().set(StatusColor::Red);
-
+    
     ESP_LOGI(TAG, "Init Wifi");
     init_wifi();
 

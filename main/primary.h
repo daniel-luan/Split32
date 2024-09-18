@@ -21,7 +21,7 @@ class Primary
     struct SecondayPeer
     {
         DeviceRole role;
-        uint64_t lastPacketTime;
+        int64_t lastPacketTime;
         bool sendSuccesful = true;
     };
 
@@ -53,9 +53,16 @@ class Primary
 
     static void espnowProcessRecvTask(void *p);
 
-    bool updatePeerInfo(MacAddress addr, DeviceRole role);
+    enum PeerUpdateResult
+    {
+        PEER_LIST_FULL,
+        PEER_ADDED,
+        PEER_EXISTING,
+    };
 
-    void checkPeerAlive();
+    PeerUpdateResult updatePeerInfo(MacAddress addr, DeviceRole role);
+
+    void checkPeersConnected();
 
     uint8_t MATRIX_STATE[PRIMARY_MATRIX_ROWS][PRIMARY_MATRIX_COLS] = {0};
 

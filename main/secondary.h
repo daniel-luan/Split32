@@ -15,7 +15,7 @@
 
 class Secondary
 {
-    uint8_t primary_address[6];
+    uint8_t primary_address[6] = {0};
 
     struct QueueItem
     {
@@ -41,6 +41,7 @@ class Secondary
     void init();
 
     static void espnowProcessRecvTask(void *p);
+    TaskHandle_t recvTaskHandle = NULL;
 
     typedef struct
     {
@@ -48,11 +49,14 @@ class Secondary
         Secondary *secondary;
     } keyEventTask_params_t;
     static void keyEventTask(void *pvParameters);
+    TaskHandle_t keyEventTaskHandle = NULL;
 
     int64_t lastRegistrationTime = -1000000;
     void registerWithPrimary();
 
     void sendKeyEventToPrimary(key_event_t key_event);
+
+    uint32_t lastEventTime = 0;
 
 public:
     Secondary(Secondary const &) = delete;

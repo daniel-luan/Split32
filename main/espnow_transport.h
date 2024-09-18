@@ -15,7 +15,7 @@ enum PacketType
     PACKET_TYPE_ACK,
     PACKET_TYPE_PING,
     PACKET_TYPE_MATRIX,
-    PACKET_TYPE_INFO,
+    PACKET_TYPE_INFO_REQ,
 };
 
 
@@ -24,6 +24,12 @@ typedef struct __attribute__((packed))
     PacketType packetType;
     DeviceRole splitSide;
 } Header;
+
+
+typedef struct __attribute__((packed))
+{
+} RegistrationPacket;
+
 
 typedef struct __attribute__((packed))
 {
@@ -38,7 +44,7 @@ typedef struct __attribute__((packed))
 typedef struct
 {
     Header header;
-    std::variant<MatrixPacket, InfoPacket> payload = {};
+    std::variant<MatrixPacket, InfoPacket, RegistrationPacket> payload = {};
 } Packet;
 
 #endif
