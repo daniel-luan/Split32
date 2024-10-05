@@ -15,8 +15,8 @@ enum DeviceRole
 };
 
 // #define DEVICE_ROLE ROLE_PRIMARY
-#define DEVICE_ROLE ROLE_LEFT
-// #define DEVICE_ROLE ROLE_RIGHT
+// #define DEVICE_ROLE ROLE_LEFT
+#define DEVICE_ROLE ROLE_RIGHT
 
 // ========== Status LED Config ==========
 #define STATUS_LED_GPIO 48
@@ -26,33 +26,52 @@ enum DeviceRole
 // ========== Primary Device Config ==========
 #define PRIMARY_MATRIX_ROWS SECONDARY_MATRIX_ROWS
 #define PRIMARY_MATRIX_COLS SECONDARY_MATRIX_COLS * 2
-#define PING_INTERVAL 3000000
+#define PING_INTERVAL 3 * 1000 * 1000
 #define EXPECTED_PEERS 2
+
+#define PRIMARY_UART_PORT_NUM UART_NUM_2
+#define PRIMARY_UART_BAUD_RATE 115200
+#define PRIMARY_UART_TX_PIN 4
+#define PRIMARY_UART_RX_PIN 3
 
 // ========== Secondary Device Configs ==========
 
-// #define DEEP_SLEEP_DELAY_US 1 * 60 * 1000 * 1000
-#define DEEP_SLEEP_DELAY_US 10 * 1000 * 1000
+#define DEEP_SLEEP_DELAY_US 3 * 60 * 1000 * 1000
+// #define DEEP_SLEEP_DELAY_US 10 * 1000 * 1000
 
 #define DEBOUNCE 4000
-const gpio_num_t MATRIX_ROW_PINS[] = {
-    GPIO_NUM_9,
-    GPIO_NUM_10,
-    GPIO_NUM_11,
-    GPIO_NUM_12,
-    GPIO_NUM_13};
 
-const gpio_num_t MATRIX_COL_PINS[] = {
+const gpio_num_t MATRIX_ROW_PINS[] = {
     GPIO_NUM_1,
-    GPIO_NUM_8,
     GPIO_NUM_2,
     GPIO_NUM_5,
     GPIO_NUM_6,
     GPIO_NUM_7,
 };
 
-#define SECONDARY_MATRIX_ROWS sizeof(MATRIX_ROW_PINS) / sizeof(gpio_num_t)
-#define SECONDARY_MATRIX_COLS sizeof(MATRIX_COL_PINS) / sizeof(gpio_num_t)
+// Right
+const gpio_num_t MATRIX_COL_PINS[] = {
+    GPIO_NUM_8,
+    GPIO_NUM_9,
+    GPIO_NUM_10,
+    GPIO_NUM_11,
+    GPIO_NUM_12,
+    GPIO_NUM_13,
+};
+
+// Left
+// const gpio_num_t MATRIX_COL_PINS[] = {
+//     GPIO_NUM_13,
+//     GPIO_NUM_12,
+//     GPIO_NUM_11,
+//     GPIO_NUM_10,
+//     GPIO_NUM_9,
+//     GPIO_NUM_8,
+// };
+
+
+#define SECONDARY_MATRIX_ROWS 5
+#define SECONDARY_MATRIX_COLS 6
 
 typedef struct
 {

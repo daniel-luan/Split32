@@ -16,6 +16,16 @@
 
 #include "espnow_transport.h"
 
+#if (PRIMARY_MATRIX_COLS <= 8)
+typedef uint8_t matrix_row_t;
+#elif (PRIMARY_MATRIX_COLS <= 16)
+typedef uint16_t matrix_row_t;
+#elif (PRIMARY_MATRIX_COLS <= 32)
+typedef uint32_t matrix_row_t;
+#else
+#error "MATRIX_COLS: invalid value"
+#endif
+
 class Primary
 {
     struct SecondayPeer
@@ -52,6 +62,7 @@ class Primary
     void init();
 
     static void espnowProcessRecvTask(void *p);
+    TaskHandle_t recvTaskHandle = NULL;
 
     enum PeerUpdateResult
     {
@@ -67,6 +78,16 @@ class Primary
     uint8_t MATRIX_STATE[PRIMARY_MATRIX_ROWS][PRIMARY_MATRIX_COLS] = {0};
 
     void onPeerDisconnect(DeviceRole role);
+
+    matrix_row_t packRows(int row);
+    uint8_t packed_matrix[PRIMARY_MATRIX_ROWS * sizeof(matrix_row_t) + 1] = {0};
+    void packMatrix();
+
+    uint64_t matrix_request_count = 0;
+    uint64_t led_update_count = 0;
+
+    static void uartTask(void *p);
+    TaskHandle_t uartTaskHandle = NULL;
 
 public:
     Primary(Primary const &) = delete;

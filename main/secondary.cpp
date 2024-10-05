@@ -162,6 +162,7 @@ void Secondary::run()
             }
             else if (currentState == INITIALIZED)
             {
+                STATUS_LED::get().set(StatusColor::Blue);
                 state = REGISTERING;
             }
             else if (currentState == REGISTERING)
