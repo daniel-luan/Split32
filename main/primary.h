@@ -80,14 +80,15 @@ class Primary
     void onPeerDisconnect(DeviceRole role);
 
     matrix_row_t packRows(int row);
-    uint8_t packed_matrix[PRIMARY_MATRIX_ROWS * sizeof(matrix_row_t) + 1] = {0};
-    void packMatrix();
+    void packMatrix(uint8_t packed_matrix[]);
 
     uint64_t matrix_request_count = 0;
     uint64_t led_update_count = 0;
+    uint64_t layer_update_count = 0;
+    uint64_t key_event_count = 0;
 
-    static void uartTask(void *p);
-    TaskHandle_t uartTaskHandle = NULL;
+    static void uartRevcTask(void *p);
+    TaskHandle_t uartRevcTaskHandle = NULL;
 
 public:
     Primary(Primary const &) = delete;

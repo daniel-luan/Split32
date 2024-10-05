@@ -14,9 +14,9 @@ enum DeviceRole
     ROLE_COUNT
 };
 
-// #define DEVICE_ROLE ROLE_PRIMARY
+#define DEVICE_ROLE ROLE_PRIMARY
 // #define DEVICE_ROLE ROLE_LEFT
-#define DEVICE_ROLE ROLE_RIGHT
+// #define DEVICE_ROLE ROLE_RIGHT
 
 // ========== Status LED Config ==========
 #define STATUS_LED_GPIO 48

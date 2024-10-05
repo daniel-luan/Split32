@@ -22,7 +22,7 @@ enum PacketType
 typedef struct __attribute__((packed))
 {
     PacketType packetType;
-    DeviceRole splitSide;
+    DeviceRole deviceRole;
 } Header;
 
 

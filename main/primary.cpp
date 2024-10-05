@@ -18,9 +18,24 @@ void Primary::init()
 {
     assert(state == INIT);
 
+    // Init esp-now
     ESP_ERROR_CHECK(esp_now_init());
     ESP_ERROR_CHECK(esp_now_register_send_cb(Primary::sendCallback));
     ESP_ERROR_CHECK(esp_now_register_recv_cb(Primary::recvCallback));
+
+    // Init uart
+    uart_config_t uart_config{
+        .baud_rate = PRIMARY_UART_BAUD_RATE,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_CTS_RTS,
+        .rx_flow_ctrl_thresh = 122,
+    };
+
+    ESP_ERROR_CHECK(uart_driver_install(PRIMARY_UART_PORT_NUM, 1024 * 2, 0, 0, NULL, 0));
+    ESP_ERROR_CHECK(uart_param_config(PRIMARY_UART_PORT_NUM, &uart_config));
+    ESP_ERROR_CHECK(uart_set_pin(PRIMARY_UART_PORT_NUM, PRIMARY_UART_TX_PIN, PRIMARY_UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
 
     state = INITIALIZED;
 }
@@ -65,6 +80,10 @@ void Primary::espnowProcessRecvTask(void *p)
 {
     ESP_LOGI(PRIMARY_TAG, "Listening for packets");
     QueueItem item;
+
+    uint8_t key_event_data[3];
+    key_event_data[0] = 0x12;
+
     for (;;)
     {
 
@@ -75,7 +94,7 @@ void Primary::espnowProcessRecvTask(void *p)
 
             const auto mac_addr = std::to_array(item.mac_addr);
 
-            auto peerResult = get().updatePeerInfo(mac_addr, item.message.header.splitSide);
+            auto peerResult = get().updatePeerInfo(mac_addr, item.message.header.deviceRole);
             if (peerResult == PeerUpdateResult::PEER_LIST_FULL)
             {
                 continue;
@@ -97,13 +116,20 @@ void Primary::espnowProcessRecvTask(void *p)
             {
                 auto event = std::get<MatrixPacket>(item.message.payload);
 
-                auto row = event.keyEvent.row + deviceOffsets[item.message.header.splitSide].rowOffset;
-                auto col = event.keyEvent.col + deviceOffsets[item.message.header.splitSide].colOffset;
+                // Calculate key event offset
+                event.keyEvent.row += deviceOffsets[item.message.header.deviceRole].rowOffset;
+                event.keyEvent.col += deviceOffsets[item.message.header.deviceRole].colOffset;
 
-                ESP_LOGI(PRIMARY_TAG, "Key event - Row: %d, Col: %d, State: %d", row, col, event.keyEvent.state);
+                ESP_LOGI(PRIMARY_TAG, "Key event - Row: %d, Col: %d, State: %d", event.keyEvent.row, event.keyEvent.col, event.keyEvent.state);
 
-                get().MATRIX_STATE[row][col] = event.keyEvent.state;
-                get().packMatrix();
+                // Update primary matrix state
+                get().MATRIX_STATE[event.keyEvent.row][event.keyEvent.col] = event.keyEvent.state;
+
+                // Send key event via uart
+                get().key_event_count++;
+                key_event_data[1] = event.keyEvent.col;
+                key_event_data[2] = (event.keyEvent.row << 1) | (event.keyEvent.state & 0x01);
+                uart_write_bytes(PRIMARY_UART_PORT_NUM, (const char *)key_event_data, 3);
             }
         }
     }
@@ -188,9 +214,10 @@ matrix_row_t Primary::packRows(int row)
     return packed_row;
 }
 
-void Primary::packMatrix()
+void Primary::packMatrix(uint8_t packed_matrix[])
 {
-    size_t index = 0;
+    // start at byte 1 to account for the type header
+    size_t index = 1;
 
     // Pack matrix row data
     for (size_t row = 0; row < PRIMARY_MATRIX_ROWS; ++row)
@@ -208,59 +235,55 @@ void Primary::packMatrix()
     packed_matrix[index++] = 0xFF; // Assuming 0xFF is the end byte
 }
 
-void Primary::uartTask(void *p)
+void Primary::uartRevcTask(void *p)
 {
-
-    uart_config_t uart_config = {
-        .baud_rate = PRIMARY_UART_BAUD_RATE,
-        .data_bits = UART_DATA_8_BITS,
-        .parity = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_CTS_RTS,
-        .rx_flow_ctrl_thresh = 122,
-    };
-
-    ESP_ERROR_CHECK(uart_driver_install(PRIMARY_UART_PORT_NUM, 1024 * 2, 0, 0, NULL, 0));
-    ESP_ERROR_CHECK(uart_param_config(PRIMARY_UART_PORT_NUM, &uart_config));
-    ESP_ERROR_CHECK(uart_set_pin(PRIMARY_UART_PORT_NUM, PRIMARY_UART_TX_PIN, PRIMARY_UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
-
-    uint8_t data[2];
+    uint8_t data[2] = {0};
     size_t length = 0;
     size_t read = 0;
 
-    // size_t packed_matrix_size = (PRIMARY_MATRIX_ROWS * sizeof(matrix_row_t)) + 1;
-    // uint8_t packed_matrix[packed_matrix_size] = {0};
+    size_t packed_full_matrix_size = (PRIMARY_MATRIX_ROWS * sizeof(matrix_row_t)) + 2;
+    uint8_t packed_full_matrix[packed_full_matrix_size] = {0};
+    packed_full_matrix[0] = 0x11;
 
     while (true)
     {
         ESP_ERROR_CHECK(uart_get_buffered_data_len(PRIMARY_UART_PORT_NUM, (size_t *)&length));
-        read = uart_read_bytes(PRIMARY_UART_PORT_NUM, data, 2, 100 / portTICK_PERIOD_MS);
 
-        // ESP_LOGI(PRIMARY_TAG, "%d bytes in buffer, read %d", length, read);
-
-        if (read == 2)
+        // Wait and continue if there is no data to read
+        if (length == 0)
         {
-            if (data[0] == 0x01)
-            {
-                get().matrix_request_count++;
-                // get().packMatrix(packed_matrix);
-                uart_write_bytes(PRIMARY_UART_PORT_NUM, (const char *)get().packed_matrix, (PRIMARY_MATRIX_ROWS * sizeof(matrix_row_t)) + 1);
-                // ESP_ERROR_CHECK(uart_wait_tx_done(PRIMARY_UART_PORT_NUM, 10 / portTICK_PERIOD_MS));
-            }
-            else if (data[0] == 0x02)
-            {
-                ESP_LOGI(PRIMARY_TAG, "LED Update: %d", data[1]);
-                get().led_update_count++;
-            }
-            else
-            {
-                ESP_LOGW(PRIMARY_TAG, "Unknown command: %d", data[0]);
-            }
+            vTaskDelay(10 / portTICK_PERIOD_MS);
+            continue;
+        }
+
+        // Read type byte
+        read = uart_read_bytes(PRIMARY_UART_PORT_NUM, data, 1, 10 / portTICK_PERIOD_MS);
+        assert(read == 1);
+
+        if (data[0] == 0x01)
+        // Full matrix request
+        {
+            get().matrix_request_count++;
+            get().packMatrix(packed_full_matrix);
+            uart_write_bytes(PRIMARY_UART_PORT_NUM, (const char *)packed_full_matrix, (PRIMARY_MATRIX_ROWS * sizeof(matrix_row_t)) + 2);
+        }
+        else if (data[0] == 0x02)
+        {
+            // Led update
+            read = uart_read_bytes(PRIMARY_UART_PORT_NUM, data, 1, 10 / portTICK_PERIOD_MS);
+            get().led_update_count++;
+            ESP_LOGI(PRIMARY_TAG, "LED Update: %d", data[0]);
+        }
+        else if (data[0] == 0x03)
+        {
+            // Layer update
+            read = uart_read_bytes(PRIMARY_UART_PORT_NUM, data, 1, 10 / portTICK_PERIOD_MS);
+            get().layer_update_count++;
+            ESP_LOGI(PRIMARY_TAG, "Layer Update: %d", data[0]);
         }
         else
         {
-            ESP_LOGW(PRIMARY_TAG, "Unexpected number of bytes read: %d", read);
-            // uart_flush_input(PRIMARY_UART_PORT_NUM);
+            ESP_LOGW(PRIMARY_TAG, "Unknown command: %d", data[0]);
         }
     }
 }
@@ -297,9 +320,9 @@ void Primary::run()
                     xTaskCreate(Primary::espnowProcessRecvTask, "recv_task", 8192, NULL, 4, &recvTaskHandle);
                 }
 
-                if (uartTaskHandle == NULL)
+                if (uartRevcTaskHandle == NULL)
                 {
-                    xTaskCreatePinnedToCore(Primary::uartTask, "uart_task", 8192, NULL, 4, &uartTaskHandle, 1);
+                    xTaskCreatePinnedToCore(Primary::uartRevcTask, "uart_task", 8192, NULL, 4, &uartRevcTaskHandle, 1);
                 }
             }
             lastState = currentState;
@@ -317,7 +340,7 @@ void Primary::run()
 
             if (esp_timer_get_time() - lastLogTime > 1000000)
             {
-                ESP_LOGI(PRIMARY_TAG, "Matrix: %llu LED: %llu", matrix_request_count, led_update_count);
+                ESP_LOGI(PRIMARY_TAG, "Matrix: %llu LED: %llu Layer: %llu Key Events Sent: %llu", matrix_request_count, led_update_count, layer_update_count, key_event_count);
                 lastLogTime = esp_timer_get_time();
             }
         }
