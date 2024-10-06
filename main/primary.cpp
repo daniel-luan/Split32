@@ -56,7 +56,7 @@ void Primary::sendCallback(const uint8_t *mac_addr, esp_now_send_status_t status
     }
     else
     {
-        ESP_LOGI(PRIMARY_TAG, "Failed to send message");
+        ESP_LOGW(PRIMARY_TAG, "Failed to send message");
 
         if (it != get().peerMap.end())
         {
@@ -90,7 +90,7 @@ void Primary::espnowProcessRecvTask(void *p)
         if (xQueueReceive(get().recv_queue, &item, portMAX_DELAY) == pdPASS)
         {
 
-            ESP_LOGI(PRIMARY_TAG, "Got item %d from " MACSTR, item.message.header.packetType, MAC2STR(item.mac_addr));
+            ESP_LOGD(PRIMARY_TAG, "Got item %d from " MACSTR, item.message.header.packetType, MAC2STR(item.mac_addr));
 
             const auto mac_addr = std::to_array(item.mac_addr);
 
@@ -101,14 +101,14 @@ void Primary::espnowProcessRecvTask(void *p)
             }
             else if (peerResult == PeerUpdateResult::PEER_ADDED && item.message.header.packetType != PACKET_TYPE_REGISTRATION)
             {
-                ESP_LOGI(PRIMARY_TAG, "Sending PACKET_TYPE_INFO_REQ to " MACSTR, MAC2STR(item.mac_addr));
+                ESP_LOGD(PRIMARY_TAG, "Sending PACKET_TYPE_INFO_REQ to " MACSTR, MAC2STR(item.mac_addr));
                 Packet message = {PACKET_TYPE_INFO_REQ, ROLE_PRIMARY};
                 ESP_ERROR_CHECK(esp_now_send(item.mac_addr, (uint8_t *)&message, sizeof(message))); // NULL for broadcast
             }
 
             if (item.message.header.packetType == PACKET_TYPE_REGISTRATION)
             {
-                ESP_LOGI(PRIMARY_TAG, "Sending PACKET_TYPE_ACK to " MACSTR, MAC2STR(item.mac_addr));
+                ESP_LOGD(PRIMARY_TAG, "Sending PACKET_TYPE_ACK to " MACSTR, MAC2STR(item.mac_addr));
                 Packet message = {PACKET_TYPE_ACK, ROLE_PRIMARY};
                 ESP_ERROR_CHECK(esp_now_send(item.mac_addr, (uint8_t *)&message, sizeof(message))); // NULL for broadcast
             }
@@ -120,7 +120,7 @@ void Primary::espnowProcessRecvTask(void *p)
                 event.keyEvent.row += deviceOffsets[item.message.header.deviceRole].rowOffset;
                 event.keyEvent.col += deviceOffsets[item.message.header.deviceRole].colOffset;
 
-                ESP_LOGI(PRIMARY_TAG, "Key event - Row: %d, Col: %d, State: %d", event.keyEvent.row, event.keyEvent.col, event.keyEvent.state);
+                ESP_LOGD(PRIMARY_TAG, "Key event - Row: %d, Col: %d, State: %d", event.keyEvent.row, event.keyEvent.col, event.keyEvent.state);
 
                 // Update primary matrix state
                 get().MATRIX_STATE[event.keyEvent.row][event.keyEvent.col] = event.keyEvent.state;
@@ -187,7 +187,7 @@ void Primary::checkPeersConnected()
         }
         else if (currentTime - it->second.lastPacketTime > PING_INTERVAL)
         {
-            ESP_LOGI(PRIMARY_TAG, "Sending PACKET_TYPE_PING to " MACSTR, MAC2STR(it->first.data()));
+            ESP_LOGD(PRIMARY_TAG, "Sending PACKET_TYPE_PING to " MACSTR, MAC2STR(it->first.data()));
             it->second.lastPacketTime = currentTime;
             Packet message = {PACKET_TYPE_PING, ROLE_PRIMARY};
             ESP_ERROR_CHECK(esp_now_send(it->first.data(), (uint8_t *)&message, sizeof(message)));
@@ -272,14 +272,12 @@ void Primary::uartRevcTask(void *p)
             // Led update
             read = uart_read_bytes(PRIMARY_UART_PORT_NUM, data, 1, 10 / portTICK_PERIOD_MS);
             get().led_update_count++;
-            ESP_LOGI(PRIMARY_TAG, "LED Update: %d", data[0]);
         }
         else if (data[0] == 0x03)
         {
             // Layer update
             read = uart_read_bytes(PRIMARY_UART_PORT_NUM, data, 1, 10 / portTICK_PERIOD_MS);
             get().layer_update_count++;
-            ESP_LOGI(PRIMARY_TAG, "Layer Update: %d", data[0]);
         }
         else
         {
