@@ -14,7 +14,7 @@
 
 DEFINE_DEVICE_OFFSETS
 
-static const char *TAG = "SPLIT32";
+static const char *TAG = "TI-32";
 
 void init_nvs()
 {
