@@ -10,7 +10,6 @@
 #include "primary.h"
 #include "secondary.h"
 #include "display.h"
-#include "matrix.h"
 
 DEFINE_DEVICE_OFFSETS
 

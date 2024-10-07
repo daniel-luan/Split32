@@ -27,8 +27,7 @@ void Secondary::init()
     broadcast_peer.ifidx = WIFI_IF_STA;
     broadcast_peer.encrypt = false;
     ESP_ERROR_CHECK(esp_now_add_peer(&broadcast_peer));
-
-    state = INITIALIZED;
+    state = REGISTERING;
 }
 
 void Secondary::sendCallback(const uint8_t *mac_addr, esp_now_send_status_t status)
@@ -68,6 +67,12 @@ void Secondary::espnowProcessRecvTask(void *p)
 
             if (item.message.header.packetType == PACKET_TYPE_ACK)
             {
+                // Only expect this message type in registering phase
+                if (get().state != REGISTERING)
+                {
+                    continue;
+                }
+
                 ESP_LOGI(SECONDARY_TAG, "New Primary Address " MACSTR, MAC2STR(item.mac_addr));
 
                 if (memcmp(get().primary_address, item.mac_addr, 6) != 0)
@@ -160,13 +165,9 @@ void Secondary::run()
             {
                 init();
             }
-            else if (currentState == INITIALIZED)
-            {
-                STATUS_LED::get().set(StatusColor::Blue);
-                state = REGISTERING;
-            }
             else if (currentState == REGISTERING)
             {
+                STATUS_LED::get().set(StatusColor::Blue);
                 if (recvTaskHandle == NULL)
                 {
                     xTaskCreate(Secondary::espnowProcessRecvTask, "recv_task", 8192, NULL, 4, &recvTaskHandle);
@@ -194,9 +195,6 @@ void Secondary::run()
 
         // Run code for current state
         if (currentState == INIT)
-        {
-        }
-        else if (currentState == INITIALIZED)
         {
         }
         else if (currentState == REGISTERING)

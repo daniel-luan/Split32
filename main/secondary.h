@@ -31,7 +31,6 @@ class Secondary
     {
         UNKNOWN = -1,
         INIT = 0,
-        INITIALIZED,
         REGISTERING,
         RUNNING,
     };

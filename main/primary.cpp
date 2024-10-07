@@ -37,7 +37,7 @@ void Primary::init()
     ESP_ERROR_CHECK(uart_param_config(PRIMARY_UART_PORT_NUM, &uart_config));
     ESP_ERROR_CHECK(uart_set_pin(PRIMARY_UART_PORT_NUM, PRIMARY_UART_TX_PIN, PRIMARY_UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
 
-    state = INITIALIZED;
+    state = RUNNING;
 }
 
 void Primary::sendCallback(const uint8_t *mac_addr, esp_now_send_status_t status)
@@ -305,10 +305,6 @@ void Primary::run()
             {
                 init();
             }
-            else if (state == INITIALIZED)
-            {
-                state = RUNNING;
-            }
             else if (state == RUNNING)
             {
                 STATUS_LED::get().set(StatusColor::Green);
@@ -327,9 +323,6 @@ void Primary::run()
         }
 
         if (state == INIT)
-        {
-        }
-        else if (state == INITIALIZED)
         {
         }
         else if (state == RUNNING)

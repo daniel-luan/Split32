@@ -5,7 +5,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <vector>
 #include <array>
 #include <map>
 
@@ -53,7 +52,6 @@ class Primary
     {
         UNKNOWN = -1,
         INIT = 0,
-        INITIALIZED,
         RUNNING,
     };
 
