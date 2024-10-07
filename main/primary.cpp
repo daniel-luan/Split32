@@ -79,7 +79,7 @@ void Primary::recvCallback(const esp_now_recv_info_t *esp_now_info, const uint8_
 
 void Primary::espnowProcessRecvTask(void *p)
 {
-    ESP_LOGI(PRIMARY_TAG, "Listening for packets");
+    ESP_LOGI(PRIMARY_TAG, "Listening for ESP_NOW packets");
     QueueItem item;
 
     uint8_t key_event_data[3];
@@ -145,12 +145,12 @@ Primary::PeerUpdateResult Primary::updatePeerInfo(MacAddress addr, DeviceRole ro
     {
         if (esp_timer_get_time() > REGISTRATION_PHASE_US)
         {
-            ESP_LOGE(PRIMARY_TAG, "Registration phase ended, ignoring message");
+            ESP_LOGD(PRIMARY_TAG, "Registration phase ended, ignoring message");
             return PeerUpdateResult::PEER_ADD_FAILED;
         }
         if (peerMap.size() + 1 > EXPECTED_PEERS)
         {
-            ESP_LOGE(PRIMARY_TAG, "Max expected number of %d peers reached, ignoring message", EXPECTED_PEERS);
+            ESP_LOGD(PRIMARY_TAG, "Max expected number of %d peers reached, ignoring message", EXPECTED_PEERS);
             return PeerUpdateResult::PEER_ADD_FAILED;
         }
 
@@ -279,7 +279,7 @@ void Primary::uartRevcTask(void *p)
         }
         else
         {
-            ESP_LOGW(PRIMARY_TAG, "Unknown command: %d", data[0]);
+            ESP_LOGD(PRIMARY_TAG, "Unknown command: %d", data[0]);
         }
     }
 }
@@ -335,22 +335,5 @@ void Primary::run()
         }
 
         vTaskDelay(10 / portTICK_PERIOD_MS);
-    }
-}
-
-void Primary::onPeerDisconnect(DeviceRole role)
-{
-    ESP_LOGI(PRIMARY_TAG, "Clearing peer matrix for side %d", role);
-
-    // Clear peer matrix on the primary
-    int rowOffset = deviceOffsets[role].rowOffset;
-    int colOffset = deviceOffsets[role].colOffset;
-
-    for (int row = rowOffset; row < SECONDARY_MATRIX_ROWS + rowOffset; row++)
-    {
-        for (int col = colOffset; col < SECONDARY_MATRIX_COLS + colOffset; col++)
-        {
-            MATRIX_STATE[row][col] = 0;
-        }
     }
 }

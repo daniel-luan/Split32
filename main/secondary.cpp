@@ -38,7 +38,7 @@ void Secondary::sendCallback(const uint8_t *mac_addr, esp_now_send_status_t stat
     }
     else
     {
-        ESP_LOGW(SECONDARY_TAG, "Failed to send message");
+        ESP_LOGD(SECONDARY_TAG, "Failed to send message");
         get().state = REGISTERING;
     }
 }
@@ -203,7 +203,7 @@ void Secondary::run()
 
             if (currentTime - lastEventTime > REGISTERING_SLEEP_WAIT_US)
             {
-                ESP_LOGE(SECONDARY_TAG, "No Primary Found for %d, Sleeping...", REGISTERING_SLEEP_WAIT_US);
+                ESP_LOGW(SECONDARY_TAG, "No Primary Found for %d, Sleeping...", REGISTERING_SLEEP_WAIT_US);
 
                 STATUS_LED::get().off();
                 m.sleep();
@@ -215,7 +215,7 @@ void Secondary::run()
 
             if (currentTime - m.lastKeyPress > KEY_SLEEP_WAIT_US)
             {
-                ESP_LOGE(SECONDARY_TAG, "No Key Presss for %d, Sleeping...", KEY_SLEEP_WAIT_US);
+                ESP_LOGW(SECONDARY_TAG, "No Key Presss for %d, Sleeping...", KEY_SLEEP_WAIT_US);
 
                 STATUS_LED::get().off();
                 m.sleep();
@@ -224,7 +224,7 @@ void Secondary::run()
 
         if (currentTime - std::max(lastEventTime, m.lastKeyPress) > KEY_SLEEP_WAIT_US)
         {
-            ESP_LOGE(SECONDARY_TAG, "Sleeping");
+            ESP_LOGW(SECONDARY_TAG, "Sleeping");
 
             STATUS_LED::get().off();
             m.sleep();

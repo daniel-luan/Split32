@@ -75,8 +75,6 @@ class Primary
 
     uint8_t MATRIX_STATE[PRIMARY_MATRIX_ROWS][PRIMARY_MATRIX_COLS] = {0};
 
-    void onPeerDisconnect(DeviceRole role);
-
     matrix_row_t packRows(int row);
     void packMatrix(uint8_t packed_matrix[]);
 
