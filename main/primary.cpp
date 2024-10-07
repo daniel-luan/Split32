@@ -31,6 +31,7 @@ void Primary::init()
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_CTS_RTS,
         .rx_flow_ctrl_thresh = 122,
+        .source_clk = UART_SCLK_DEFAULT,
     };
 
     ESP_ERROR_CHECK(uart_driver_install(PRIMARY_UART_PORT_NUM, 1024 * 2, 0, 0, NULL, 0));
@@ -95,7 +96,7 @@ void Primary::espnowProcessRecvTask(void *p)
             const auto mac_addr = std::to_array(item.mac_addr);
 
             auto peerResult = get().updatePeerInfo(mac_addr, item.message.header.deviceRole);
-            if (peerResult == PeerUpdateResult::PEER_LIST_FULL)
+            if (peerResult == PeerUpdateResult::PEER_ADD_FAILED)
             {
                 continue;
             }
@@ -142,10 +143,15 @@ Primary::PeerUpdateResult Primary::updatePeerInfo(MacAddress addr, DeviceRole ro
 
     if (it == peerMap.end())
     {
+        if (esp_timer_get_time() > REGISTRATION_PHASE_US)
+        {
+            ESP_LOGE(PRIMARY_TAG, "Registration phase ended, ignoring message");
+            return PeerUpdateResult::PEER_ADD_FAILED;
+        }
         if (peerMap.size() + 1 > EXPECTED_PEERS)
         {
             ESP_LOGE(PRIMARY_TAG, "Max expected number of %d peers reached, ignoring message", EXPECTED_PEERS);
-            return PeerUpdateResult::PEER_LIST_FULL;
+            return PeerUpdateResult::PEER_ADD_FAILED;
         }
 
         ESP_LOGI(PRIMARY_TAG, "New Peer Registering " MACSTR " Role: %d", MAC2STR(addr), role);
@@ -177,15 +183,7 @@ void Primary::checkPeersConnected()
     auto it = peerMap.begin();
     while (it != peerMap.end())
     {
-        if (!it->second.sendSuccesful)
-        {
-            ESP_LOGI(PRIMARY_TAG, "Send failed to Peer " MACSTR, MAC2STR(it->first.data()));
-            esp_now_del_peer(it->first.data());
-
-            onPeerDisconnect(it->second.role);
-            it = peerMap.erase(it);
-        }
-        else if (currentTime - it->second.lastPacketTime > PING_INTERVAL)
+        if (currentTime - it->second.lastPacketTime > PING_INTERVAL)
         {
             ESP_LOGD(PRIMARY_TAG, "Sending PACKET_TYPE_PING to " MACSTR, MAC2STR(it->first.data()));
             it->second.lastPacketTime = currentTime;
@@ -329,7 +327,7 @@ void Primary::run()
         {
             checkPeersConnected();
 
-            if (esp_timer_get_time() - lastLogTime > 1000000)
+            if (esp_timer_get_time() - lastLogTime > 5000000)
             {
                 ESP_LOGI(PRIMARY_TAG, "Matrix: %llu LED: %llu Layer: %llu Key Events Sent: %llu", matrix_request_count, led_update_count, layer_update_count, key_event_count);
                 lastLogTime = esp_timer_get_time();

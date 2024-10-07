@@ -200,13 +200,29 @@ void Secondary::run()
         else if (currentState == REGISTERING)
         {
             registerWithPrimary();
+
+            if (currentTime - lastEventTime > REGISTERING_SLEEP_WAIT_US)
+            {
+                ESP_LOGE(SECONDARY_TAG, "No Primary Found for %d, Sleeping...", REGISTERING_SLEEP_WAIT_US);
+
+                STATUS_LED::get().off();
+                m.sleep();
+            }
         }
         else if (currentState == RUNNING)
         {
             m.scanMatrix();
+
+            if (currentTime - m.lastKeyPress > KEY_SLEEP_WAIT_US)
+            {
+                ESP_LOGE(SECONDARY_TAG, "No Key Presss for %d, Sleeping...", KEY_SLEEP_WAIT_US);
+
+                STATUS_LED::get().off();
+                m.sleep();
+            }
         }
 
-        if (currentTime - std::max(lastEventTime, m.lastKeyPress) > DEEP_SLEEP_DELAY_US)
+        if (currentTime - std::max(lastEventTime, m.lastKeyPress) > KEY_SLEEP_WAIT_US)
         {
             ESP_LOGE(SECONDARY_TAG, "Sleeping");
 

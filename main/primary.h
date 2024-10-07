@@ -64,9 +64,9 @@ class Primary
 
     enum PeerUpdateResult
     {
-        PEER_LIST_FULL,
         PEER_ADDED,
         PEER_EXISTING,
+        PEER_ADD_FAILED,
     };
 
     PeerUpdateResult updatePeerInfo(MacAddress addr, DeviceRole role);
